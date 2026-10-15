@@ -21,6 +21,7 @@ remain distinct shapes at that size).
 | File | Use |
 | --- | --- |
 | `logo.svg` | Primary horizontal lockup (mark + wordmark). Menus, README, splash. |
+| `logo-light-bg.svg` | Same lockup with midnight lettering, for light backgrounds (e.g. README on a light theme). |
 | `logo-mark.svg` | Standalone symbol. Loading screen, small UI placements. |
 | `../favicon.svg` | Browser favicon (identical geometry to the mark). |
 | `icon-512.svg` | Square app icon source with background plate (manifest, stores). |
