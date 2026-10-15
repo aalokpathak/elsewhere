@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Elsewhere mark">
+  <defs>
+    <linearGradient id="es-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2F5D62"/>
+      <stop offset="0.62" stop-color="#18283A"/>
+      <stop offset="1" stop-color="#0E1626"/>
+    </linearGradient>
+  </defs>
+  <!-- doorway / portal -->
+  <path d="M13 59V29a19 19 0 0 1 38 0v30z" fill="url(#es-sky)" stroke="#EFE6D2" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- the light beyond the horizon -->
+  <circle cx="32" cy="33.5" r="3.6" fill="#E3A857"/>
+  <!-- horizon -->
+  <path d="M14.5 37h35" stroke="#5E8C8A" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- winding road vanishing toward the horizon -->
+  <path d="M19.5 58C27 51 36.5 46 31.2 37.2h1.8C40.5 45.5 33 52 44.5 58z" fill="#EFE6D2"/>
+</svg>

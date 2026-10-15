@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" role="img" aria-label="Elsewhere">
+  <defs>
+    <linearGradient id="es-sky-l" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2F5D62"/>
+      <stop offset="0.62" stop-color="#18283A"/>
+      <stop offset="1" stop-color="#0E1626"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(8 12) scale(1.15)">
+    <path d="M13 59V29a19 19 0 0 1 38 0v30z" fill="url(#es-sky-l)" stroke="#EFE6D2" stroke-width="2.4" stroke-linejoin="round"/>
+    <circle cx="32" cy="33.5" r="3.6" fill="#E3A857"/>
+    <path d="M14.5 37h35" stroke="#5E8C8A" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M19.5 58C27 51 36.5 46 31.2 37.2h1.8C40.5 45.5 33 52 44.5 58z" fill="#EFE6D2"/>
+  </g>
+  <text x="96" y="60" fill="#EFE6D2" font-family="'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif" font-size="38" letter-spacing="11" font-weight="400">ELSEWHERE</text>
+  <path d="M98 74h306" stroke="#5E8C8A" stroke-width="1" stroke-opacity="0.6"/>
+</svg>

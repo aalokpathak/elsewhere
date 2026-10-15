@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Elsewhere app icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#18283A"/>
+      <stop offset="1" stop-color="#0B111D"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3A6E70"/>
+      <stop offset="0.6" stop-color="#1B2D40"/>
+      <stop offset="1" stop-color="#0E1626"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#E3A857" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#E3A857" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g transform="translate(64 56) scale(6)">
+    <path d="M13 59V29a19 19 0 0 1 38 0v30z" fill="url(#sky)" stroke="#EFE6D2" stroke-width="2.2" stroke-linejoin="round"/>
+    <circle cx="32" cy="33.5" r="9" fill="url(#glow)"/>
+    <circle cx="32" cy="33.5" r="3.6" fill="#E3A857"/>
+    <path d="M14.5 37h35" stroke="#5E8C8A" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M19.5 58C27 51 36.5 46 31.2 37.2h1.8C40.5 45.5 33 52 44.5 58z" fill="#EFE6D2"/>
+  </g>
+</svg>
