@@ -4,6 +4,7 @@ import { buildSceneryGeometry, SWAY, type Detail } from './assets/nature';
 import { buildStructureGeometry, STRUCTURE_SHADING, type StructureId } from './assets/structures';
 import type { EnvironmentPreset, SceneryKind } from './environments/types';
 import { InstancePool } from './InstancePool';
+import { applyAtmosphere, withAtmosphere } from './materials/AtmosphereShader';
 import { createFoliageMaterial, type WindUniforms } from './materials/NatureMaterials';
 import type { Placement, SceneryBatch, StructurePlacement } from './SceneryGenerator';
 
@@ -80,8 +81,10 @@ export class SceneryRenderer {
     this.group.name = 'scenery';
     parent.add(this.group);
     this.lightColor = new THREE.Color(env.indoor?.lightColor ?? '#ffd9a0');
-    this.solidMaterial = this.track(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
-    this.lightMaterial = this.track(new THREE.MeshBasicMaterial({ vertexColors: true, color: this.lightColor }));
+    this.solidMaterial = this.track(withAtmosphere(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 'solid'));
+    this.lightMaterial = this.track(
+      withAtmosphere(new THREE.MeshBasicMaterial({ vertexColors: true, color: this.lightColor }), 'light', { cloudShadow: false }),
+    );
     this.reflectorMaterial = this.track(new THREE.MeshBasicMaterial({ vertexColors: true, color: '#ffb347' }));
     this.poolMaterial = this.track(
       new THREE.MeshBasicMaterial({
@@ -107,12 +110,16 @@ export class SceneryRenderer {
         /* glsl */ `
         #ifdef USE_FOG
           float es_far = smoothstep(300.0, 3600.0, vFogDepth);
-          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, es_far * 0.82);
+          float es_sun = max(dot(normalize(vEsView), uEsSunViewDir), 0.0);
+          vec3 es_haze = fogColor + uEsSunFog * pow(es_sun, 6.0);
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, es_haze, es_far * 0.82);
         #endif
         `,
       );
+      // Adds the shared varyings/uniforms; its own fog replacement is a no-op here.
+      applyAtmosphere(shader, { cloudShadow: false });
     };
-    this.landmarkMaterial.customProgramCacheKey = () => 'es-landmark';
+    this.landmarkMaterial.customProgramCacheKey = () => 'es-landmark-2';
   }
 
   private track<T extends THREE.Material>(m: T): T {

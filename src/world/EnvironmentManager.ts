@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { GraphicsProfile } from '../config/graphics';
 import { clamp, DEG, smoothstep } from '../core/math';
 import type { EnvironmentPreset } from './environments/types';
+import { atmosphereUniforms } from './materials/AtmosphereShader';
 import { Precipitation } from './Precipitation';
 import { createRoadPoint, type RoadGenerator } from './RoadGenerator';
 import { Sky } from './Sky';
@@ -39,6 +40,10 @@ export class EnvironmentManager {
   private readonly tmpPoint = createRoadPoint();
   /** 0 = night, 1 = full daylight; consumed by audio and scenery. */
   brightness = 1;
+  /** Sun glow colour shared by fog, mountains and water (matches the sky's glow). */
+  readonly sunGlow = new THREE.Color(0, 0, 0);
+  private shadowsEnabled = false;
+  private readonly viewDir = new THREE.Vector3();
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -57,7 +62,7 @@ export class EnvironmentManager {
     if (profile.shadows !== 'off' && env.kind === 'outdoor') {
       this.sun.castShadow = true;
       this.sun.shadow.mapSize.set(profile.shadowMapSize, profile.shadowMapSize);
-      const half = profile.shadows === 'all' ? 70 : 12;
+      const half = profile.shadowRange;
       const cam = this.sun.shadow.camera;
       cam.left = -half;
       cam.right = half;
@@ -65,8 +70,9 @@ export class EnvironmentManager {
       cam.bottom = -half;
       cam.near = 1;
       cam.far = 400;
-      this.sun.shadow.bias = -0.0004;
-      this.sun.shadow.normalBias = profile.shadows === 'all' ? 0.06 : 0.02;
+      this.sun.shadow.bias = -0.0005;
+      this.sun.shadow.normalBias = 0.05 + half * 0.0006;
+      this.shadowsEnabled = true;
     }
     scene.add(this.sun, this.sun.target);
 
@@ -117,6 +123,11 @@ export class EnvironmentManager {
     const sunUp = smoothstep(-6, 4, state.sunElevation);
     this.sun.color.setRGB(...state.sunColor);
     this.sun.intensity = state.sunIntensity * Math.max(0.15, sunUp);
+    // No shadow pass when the sun is down or fully hidden (saves a whole render pass).
+    if (this.shadowsEnabled) {
+      const want = state.sunElevation > 2.5 && state.sunIntensity > 0.5;
+      if (this.sun.castShadow !== want) this.sun.castShadow = want;
+    }
     this.hemi.color.setRGB(...state.hemiSky);
     this.hemi.groundColor.setRGB(...state.hemiGround);
     this.hemi.intensity = state.hemiIntensity;
@@ -129,8 +140,20 @@ export class EnvironmentManager {
     this.renderer.toneMappingExposure = state.exposure;
     this.brightness = clamp(state.sunIntensity * sunUp * 0.35 + state.hemiIntensity * 0.45, 0, 1);
 
+    // Shared shading: cloud shadows and sun-tinted distance haze.
+    const outdoor = this.env.kind === 'outdoor';
+    const disc = u.uSunDisc.value;
+    this.sunGlow.setRGB(...state.sunColor).multiplyScalar(outdoor ? 0.22 * (0.35 + 0.65 * disc) * Math.min(1, state.sunIntensity) : 0);
+    atmosphereUniforms.uEsSunFog.value.copy(this.sunGlow);
+    atmosphereUniforms.uEsCloudTime.value = time;
+    atmosphereUniforms.uEsCloudCover.value = state.cloudCover;
+    atmosphereUniforms.uEsCloudShadow.value = outdoor
+      ? 0.42 * sunUp * clamp(state.sunIntensity / 2, 0, 1) * smoothstep(0.02, 0.2, state.cloudCover) * (1 - smoothstep(0.75, 0.97, state.cloudCover))
+      : 0;
+
     if (this.water) {
       const w = this.water.uniforms;
+      w.uSunGlow.value.copy(this.sunGlow);
       w.uSky.value.setRGB(...state.skyZenith);
       w.uHorizon.value.setRGB(...state.skyHorizon);
       w.uSunColor.value.setRGB(...state.sunColor);
@@ -188,6 +211,8 @@ export class EnvironmentManager {
   }
 
   followCamera(camera: THREE.Camera, time: number, state: AtmosphereState): void {
+    this.viewDir.copy(this.sunDir).transformDirection(camera.matrixWorldInverse);
+    atmosphereUniforms.uEsSunViewDir.value.copy(this.viewDir);
     this.sky.follow(camera);
     this.water?.follow(camera);
     this.precipitation.update(time, camera, state.rain, state.snow, state.wind, this.brightness);

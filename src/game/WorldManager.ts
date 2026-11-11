@@ -254,7 +254,15 @@ export class WorldManager {
     return { height: 0, surface: 'asphalt', query: createRoadQuery() };
   }
 
-  applyAtmosphere(state: AtmosphereState, lights: number, brightness: number, horizon: THREE.Color, sun: THREE.Color): void {
+  applyAtmosphere(
+    state: AtmosphereState,
+    lights: number,
+    brightness: number,
+    horizon: THREE.Color,
+    sun: THREE.Color,
+    sunGlow: THREE.Color,
+    sunDir: THREE.Vector3,
+  ): void {
     this.surfaceUniforms.uWetness.value = state.wetness;
     this.surfaceUniforms.uMirage.value =
       this.env.id === 'desert-highway' ? (1 - state.wetness) * clamp(state.sunIntensity / 3, 0, 1) * 0.85 : 0;
@@ -262,7 +270,7 @@ export class WorldManager {
     this.scenery.setLightLevel(lights);
     this.scenery.setDarkness(1 - brightness);
     const light = clamp(state.hemiIntensity * 0.55 + state.sunIntensity * 0.12, 0.05, 1.2);
-    this.distant.setAtmosphere(horizon, light, sun);
+    this.distant.setAtmosphere(horizon, light, sun, sunGlow, sunDir);
     if (this.env.landmarks) {
       this.scenery.setLandmarkColor(new THREE.Color(this.env.landmarks.color).lerp(horizon, 0.12));
     }

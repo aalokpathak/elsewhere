@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applyAtmosphere } from './AtmosphereShader';
 
 /** Uniforms shared by every swaying material, updated once per frame. */
 export interface WindUniforms {
@@ -77,8 +78,9 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
       #endif
       `,
     );
+    applyAtmosphere(shader);
   };
-  mat.customProgramCacheKey = () => 'es-terrain';
+  mat.customProgramCacheKey = () => 'es-terrain-2';
   return mat;
 }
 
@@ -118,7 +120,8 @@ export function createFoliageMaterial(
         transformed.z += cos(uTime * 1.4 + es_ph * 1.3) * es_w * es_h * 0.5;
         `,
       );
+    applyAtmosphere(shader);
   };
-  mat.customProgramCacheKey = () => `es-foliage-${opts.sway}-${opts.side ?? 0}-${opts.flat ?? true}`;
+  mat.customProgramCacheKey = () => `es-foliage2-${opts.sway}-${opts.side ?? 0}-${opts.flat ?? true}`;
   return mat;
 }

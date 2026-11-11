@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { EnvironmentPreset, MarkingStyle, SurfaceMode } from '../environments/types';
+import { applyAtmosphere } from './AtmosphereShader';
 
 /**
  * Procedural surface material for roads, floors, ceilings and walls.
@@ -215,8 +216,10 @@ export function createSurfaceMaterial(opts: SurfaceMaterialOptions): THREE.MeshS
       .replace('#include <map_fragment>', `#include <map_fragment>\n${GLSL_ALBEDO}`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n${GLSL_ROUGHNESS}`)
       .replace('#include <fog_fragment>', `#include <fog_fragment>\n${GLSL_MIRAGE}`);
+    // Indoor surfaces (mode >= 10) take fog but no cloud shadows.
+    applyAtmosphere(shader, { cloudShadow: mode < 10 });
   };
-  mat.customProgramCacheKey = () => `es-surface-${mode}-${mark}-${opts.edgeLines ? 1 : 0}`;
+  mat.customProgramCacheKey = () => `es-surface2-${mode}-${mark}-${opts.edgeLines ? 1 : 0}`;
   return mat;
 }
 

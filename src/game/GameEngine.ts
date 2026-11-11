@@ -35,6 +35,8 @@ interface Session {
   weather: WeatherSystem;
   anomalies: AnomalySystem;
   autopilot: Autopilot;
+  /** False until the world has finished generating and the car is placed. */
+  ready: boolean;
 }
 
 const START_S = 320;
@@ -188,7 +190,7 @@ export class GameEngine {
     const weather = new WeatherSystem(variant);
     const anomalies = new AnomalySystem(this.scene, env, this.settings.atmosphere, this.audio, world);
     const autopilot = new Autopilot(world.road, env.kind === 'indoor' && env.indoor?.type === 'corridor' ? 0 : env.road.halfWidth * 0.5, Math.min(env.maxSpeedKmh * 0.5, 70) / 3.6);
-    const session: Session = { env, variant, seed, world, atmosphere, weather, anomalies, autopilot };
+    const session: Session = { env, variant, seed, world, atmosphere, weather, anomalies, autopilot, ready: false };
     this.session = session;
 
     await world.initialize(startS, (f) => {
@@ -196,6 +198,12 @@ export class GameEngine {
     });
     if (token !== this.loadToken || this.disposed || this.session !== session) return false;
 
+    // Never carry a half-finished recovery fade into a new world.
+    if (this.recoverTimer >= 0) {
+      this.recoverTimer = -1;
+      this.emit('fade', false);
+    }
+    session.ready = true;
     this.placeCarOnRoad(startS);
     this.applyVehicleParams();
     this.audio.setEnvironment(env.audio);
@@ -239,7 +247,9 @@ export class GameEngine {
   /** Main menu: a live, autopiloted drive through the selected environment. */
   async showMenu(environmentId: DriveSelection['environmentId'], variantId: string | null): Promise<void> {
     const s = this.session;
-    if (s && s.env.id === environmentId) {
+    // Only reuse a world that has finished loading; otherwise the frame loop
+    // would start on a half-built world (blank screen / stuck fade).
+    if (s && s.ready && s.env.id === environmentId) {
       if (variantId && s.weather.targetId !== variantId) this.setVariant(variantId, 4);
       this.cameraCtl.setMode('cinematic');
       this.setPhase('menu');
@@ -268,7 +278,7 @@ export class GameEngine {
   async startDrive(sel: DriveSelection): Promise<void> {
     void this.audio.start();
     const s = this.session;
-    const reuse = s && s.env.id === sel.environmentId && (sel.seed === undefined || sel.seed === s.seed);
+    const reuse = s && s.ready && s.env.id === sel.environmentId && (sel.seed === undefined || sel.seed === s.seed);
     if (reuse && (this.phase === 'menu' || this.phase === 'paused')) {
       if (sel.variantId && s.weather.targetId !== sel.variantId) this.setVariant(sel.variantId, 3);
       this.elapsed = 0;
@@ -371,7 +381,12 @@ export class GameEngine {
   }
 
   recover(): void {
-    if (!this.session || this.recoverTimer >= 0) return;
+    if (!this.session || !this.session.ready || this.recoverTimer >= 0) return;
+    // Outside a drive (menu preview) just put the car back; no screen fade.
+    if (this.phase !== 'driving') {
+      this.placeCarOnRoad(Math.max(this.carS, this.session.world.road.startS + 200));
+      return;
+    }
     this.recoverTimer = 0;
     this.emit('fade', true);
   }
@@ -399,7 +414,7 @@ export class GameEngine {
   private frame(dt: number, time: number): void {
     if (this.disposed) return;
     const session = this.session;
-    if (!session) return;
+    if (!session || !session.ready) return;
     if (this.phase === 'paused' || this.phase === 'loading') {
       if (this.needsRender) {
         this.render();
@@ -461,7 +476,7 @@ export class GameEngine {
       {
         reduceMotion: this.settings.comfort.reduceMotion,
         fov: this.settings.controls.fov,
-        sensitivity: this.settings.controls.cameraSensitivity,
+        lookBack: false,
         groundAt: (x, z) => world.ground(x, z, this.ground).height,
         ceilingY: ind ? this.q.y + ind.ceilingHeight : null,
       },
@@ -562,8 +577,10 @@ export class GameEngine {
       steerAngle: st.steer,
       wheelSpin: st.wheelSpin,
       braking: st.braking || this.vin.brake > 0.1,
+      reversing: st.speed < -0.3,
       lightsOn,
       headlights: (atm?.headlights ?? 0) * (indoor ? 90 : 170),
+      beams: atm && !indoor ? Math.min(1, atm.headlights * (0.25 + atm.rain * 0.6 + Math.max(0, 1 - atm.fogFar / 400) * 0.9)) : 0,
       speedKmh: st.speed * 3.6,
       units: this.settings.controls.units,
       darkness: 1 - (this.session?.atmosphere.brightness ?? 1),
@@ -595,7 +612,7 @@ export class GameEngine {
     this.horizon.setRGB(...state.skyHorizon);
     this.sunColor.setRGB(...state.sunColor);
     const lights = state.lights * overlay.lights;
-    s.world.applyAtmosphere(state, lights, s.atmosphere.brightness, this.horizon, this.sunColor);
+    s.world.applyAtmosphere(state, lights, s.atmosphere.brightness, this.horizon, this.sunColor, s.atmosphere.sunGlow, s.atmosphere.sunDir);
     s.atmosphere.updateIndoorLights(s.world.road, this.carS, lights);
     s.atmosphere.followCar(this.carPos.set(this.vehicle.state.x, this.vehicle.state.y, this.vehicle.state.z));
   }

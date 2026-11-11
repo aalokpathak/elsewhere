@@ -19,10 +19,13 @@ attribute float aTop;
 attribute float aPeak;
 varying float vTop;
 varying float vPeak;
+varying vec3 vDir;
 void main() {
   vTop = aTop;
   vPeak = aPeak;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vDir = w.xyz - cameraPosition;
+  gl_Position = projectionMatrix * viewMatrix * w;
 }
 `;
 
@@ -32,8 +35,11 @@ uniform vec3 uHaze;
 uniform vec3 uSnow;
 uniform float uHazeAmount;
 uniform float uSnowCap;
+uniform vec3 uSunGlow;
+uniform vec3 uSunDir;
 varying float vTop;
 varying float vPeak;
+varying vec3 vDir;
 void main() {
   vec3 col = uColor;
   if (uSnowCap > 0.0) {
@@ -41,7 +47,9 @@ void main() {
     col = mix(col, uSnow, snow);
   }
   float haze = clamp(uHazeAmount + (1.0 - vTop) * 0.22, 0.0, 1.0);
-  col = mix(col, uHaze, haze);
+  float sunDot = max(dot(normalize(vDir), uSunDir), 0.0);
+  sunDot *= sunDot;
+  col = mix(col, uHaze + uSunGlow * (sunDot * sunDot * sunDot), haze);
   gl_FragColor = vec4(col, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -123,6 +131,8 @@ export class DistantScenery {
           uSnow: { value: new THREE.Color('#e8eef4') },
           uHazeAmount: { value: layer.haze },
           uSnowCap: { value: layer.snowCap ?? 0 },
+          uSunGlow: { value: new THREE.Color(0, 0, 0) },
+          uSunDir: { value: new THREE.Vector3(0, 1, 0) },
         },
         side: THREE.FrontSide,
         fog: false,
@@ -138,9 +148,11 @@ export class DistantScenery {
   }
 
   /** Re-tints every layer for the current light and horizon colour. */
-  setAtmosphere(horizon: THREE.Color, light: number, sun: THREE.Color): void {
+  setAtmosphere(horizon: THREE.Color, light: number, sun: THREE.Color, sunGlow: THREE.Color, sunDir: THREE.Vector3): void {
     for (const r of this.rings) {
       const u = r.material.uniforms;
+      (u.uSunGlow.value as THREE.Color).copy(sunGlow);
+      (u.uSunDir.value as THREE.Vector3).copy(sunDir);
       (u.uHaze.value as THREE.Color).copy(horizon);
       (u.uColor.value as THREE.Color).copy(r.color).multiplyScalar(light).lerp(sun, 0.06 * Math.min(1, light));
       (u.uSnow.value as THREE.Color).setRGB(0.9, 0.93, 0.96).multiplyScalar(Math.min(1.15, light * 1.1));

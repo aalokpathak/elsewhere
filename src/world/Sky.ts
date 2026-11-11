@@ -46,7 +46,7 @@ float vnoise(vec2 p) {
 float fbm(vec2 p) {
   float s = 0.0;
   float a = 0.5;
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 4; i++) {
     s += a * vnoise(p);
     p = p * 2.03 + vec2(1.7, 9.2);
     a *= 0.5;
@@ -88,9 +88,17 @@ void main() {
     float edge = 1.0 - uCloudCover;
     float cov = smoothstep(edge * 0.75, edge * 0.75 + 0.32, n);
     float fade = smoothstep(0.0, 0.18, h);
-    float lit = 0.72 + 0.4 * smoothstep(0.35, 0.85, n);
-    vec3 cloud = uCloudColor * lit + uSunColor * pow(sunDot, 5.0) * 0.3 * uSunDisc;
-    col = mix(col, cloud, cov * fade * 0.92);
+    // Self-shadowing: denser cloud between this point and the sun reads darker.
+    vec2 toSun = normalize(uSunDir.xz + vec2(1e-4)) * 0.09;
+    float n2 = fbm((uv + toSun) * 1.6);
+    float shade = clamp((n2 - n) * 2.6 + 0.35 + (n - 0.5) * 0.9, 0.0, 1.0);
+    float lit = mix(1.14, 0.62, shade);
+    vec3 cloud = uCloudColor * lit;
+    // Thin edges glow when the sun is behind them (silver lining).
+    float thin = cov * (1.0 - cov) * 4.0;
+    cloud += uSunColor * (pow(sunDot, 5.0) * 0.28 + pow(sunDot, 18.0) * thin * 0.9) * uSunDisc;
+    cloud = mix(cloud, uHorizon, (1.0 - smoothstep(0.0, 0.3, h)) * 0.55);
+    col = mix(col, cloud, cov * fade * 0.94);
   }
 #endif
 

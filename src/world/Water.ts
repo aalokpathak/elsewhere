@@ -26,6 +26,7 @@ uniform float uTime;
 uniform float uFogNear;
 uniform float uFogFar;
 uniform vec2 uOffset;
+uniform vec3 uSunGlow;
 varying vec3 vWorld;
 
 vec2 wave(vec2 p, vec2 dir, float freq, float speed, float amp) {
@@ -55,7 +56,9 @@ void main() {
   float spark = pow(max(dot(r, normalize(uSunDir)), 0.0), 28.0) * 0.12;
   col += uSunColor * (spec * 3.0 + spark) * uSunStrength;
   float fog = smoothstep(uFogNear, uFogFar, dist);
-  col = mix(col, uHorizon, fog);
+  float sunDot = max(dot(-v, normalize(uSunDir)), 0.0);
+  sunDot *= sunDot;
+  col = mix(col, uHorizon + uSunGlow * (sunDot * sunDot * sunDot), fog);
   gl_FragColor = vec4(col, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -76,6 +79,7 @@ export class Water {
     uFogNear: { value: 100 },
     uFogFar: { value: 1000 },
     uOffset: { value: new THREE.Vector2() },
+    uSunGlow: { value: new THREE.Color(0, 0, 0) },
   };
   private readonly material: THREE.ShaderMaterial;
 

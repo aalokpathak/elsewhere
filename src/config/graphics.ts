@@ -17,12 +17,20 @@ export interface GraphicsProfile {
   grass: boolean;
   grassDensity: number;
   grassCapacity: number;
-  shadows: 'off' | 'car' | 'all';
+  shadows: 'off' | 'all';
+  /** Half-size (metres) of the sun shadow area around the car. */
+  shadowRange: number;
   shadowMapSize: number;
   clouds: boolean;
+  /** Bloom, film grain and multisampled HDR rendering. */
+  postFx: boolean;
+  /** MSAA samples for the HDR render target (post-processing path). */
+  msaa: number;
   /** Real point lights used indoors. */
   indoorLights: number;
   precipitation: number;
+  /** Dust / spray particles behind the car. */
+  particles: number;
   /** Per-frame time budget for building terrain chunks (ms). */
   buildBudgetMs: number;
   /** How far ahead road segment meshes are kept (multiplier of view distance). */
@@ -33,7 +41,7 @@ export const GRAPHICS_PRESETS: Record<GraphicsPresetId, GraphicsProfile> = {
   low: {
     id: 'low',
     label: 'Low',
-    description: 'Integrated graphics and older laptops. Shorter view, no grass or shadows.',
+    description: 'Older laptops and phones. Shorter view, no grass, shadows or bloom.',
     pixelRatioCap: 1,
     viewDistance: 460,
     chunkSize: 128,
@@ -44,17 +52,21 @@ export const GRAPHICS_PRESETS: Record<GraphicsPresetId, GraphicsProfile> = {
     grassDensity: 0,
     grassCapacity: 1,
     shadows: 'off',
+    shadowRange: 0,
     shadowMapSize: 512,
     clouds: false,
+    postFx: false,
+    msaa: 0,
     indoorLights: 2,
     precipitation: 1200,
+    particles: 0,
     buildBudgetMs: 3,
     roadAhead: 1.1,
   },
   medium: {
     id: 'medium',
     label: 'Medium',
-    description: 'Balanced detail. Grass near the road and a shadowed car.',
+    description: 'Balanced. Grass, tree shadows, bloom and drifting cloud shadows.',
     pixelRatioCap: 1.5,
     viewDistance: 720,
     chunkSize: 128,
@@ -62,20 +74,24 @@ export const GRAPHICS_PRESETS: Record<GraphicsPresetId, GraphicsProfile> = {
     lodSpacing: [2, 4, 8, 16],
     sceneryDensity: 0.85,
     grass: true,
-    grassDensity: 0.75,
-    grassCapacity: 45000,
-    shadows: 'car',
-    shadowMapSize: 1024,
+    grassDensity: 1,
+    grassCapacity: 70000,
+    shadows: 'all',
+    shadowRange: 58,
+    shadowMapSize: 2048,
     clouds: true,
+    postFx: true,
+    msaa: 2,
     indoorLights: 3,
     precipitation: 2600,
+    particles: 220,
     buildBudgetMs: 4,
     roadAhead: 1.15,
   },
   high: {
     id: 'high',
     label: 'High',
-    description: 'Dedicated graphics. Long view, dense scenery, tree shadows.',
+    description: 'Dedicated graphics. Long view, dense scenery, wide soft shadows.',
     pixelRatioCap: 2,
     viewDistance: 1000,
     chunkSize: 128,
@@ -83,13 +99,17 @@ export const GRAPHICS_PRESETS: Record<GraphicsPresetId, GraphicsProfile> = {
     lodSpacing: [2, 4, 8, 16],
     sceneryDensity: 1.15,
     grass: true,
-    grassDensity: 1.25,
-    grassCapacity: 80000,
+    grassDensity: 1.6,
+    grassCapacity: 120000,
     shadows: 'all',
+    shadowRange: 100,
     shadowMapSize: 2048,
     clouds: true,
+    postFx: true,
+    msaa: 4,
     indoorLights: 4,
     precipitation: 4500,
+    particles: 420,
     buildBudgetMs: 5,
     roadAhead: 1.2,
   },
