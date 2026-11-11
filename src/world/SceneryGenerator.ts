@@ -4,6 +4,7 @@ import type { Detail } from './assets/nature';
 import type { StructureId } from './assets/structures';
 import { FENCE_SECTION } from './assets/structures';
 import { sampleChunkSurface, type ChunkData } from './ChunkBuilder';
+import type { Collider } from './Colliders';
 import type { EnvironmentPreset, SceneryKind, SceneryLayer } from './environments/types';
 import { createRoadPoint, type RoadGenerator, type RoadSegmentInfo } from './RoadGenerator';
 import { hexToLinear, type TerrainSampler } from './TerrainGenerator';
@@ -105,7 +106,11 @@ export function placeChunkScenery(
       if (layer.maxHeight !== undefined && sample.height > layer.maxHeight) continue;
       if (seaLevel !== undefined && sample.height < seaLevel + 0.8) continue;
       let t: RGB;
-      if (layer.nearOnly) {
+      let size = scale;
+      if (layer.kind === 'grass' || layer.kind === 'reed') {
+        // Thin out towards the edge of the grass band instead of ending in a hard line.
+        const fade = (sample.roadDist - maxRoad * 0.55) / (maxRoad * 0.45);
+        size *= 1 - 0.7 * Math.min(1, Math.max(0, fade));
         // Grass takes its colour from the ground it grows from.
         terrain.colorAt(x, z, sample.height, sample.slope, sample.roadDist, groundColor);
         const b = 1.25 + jitter * 0.3;
@@ -114,11 +119,87 @@ export function placeChunkScenery(
         t = tint(layer.tints[tintIndex]);
       }
       const sink = (SINK[layer.kind] ?? 0) * scale;
-      items.push({ x, y: sample.height - sink, z, rot, scale, tint: t });
+      items.push({ x, y: sample.height - sink, z, rot, scale: size, tint: t });
     }
     if (items.length) batches.push({ kind: layer.kind, detail, items });
   });
   return batches;
+}
+
+/** Trunk / body radius (metres at scale 1) of scenery the car cannot drive through. */
+const SOLID_RADIUS: Partial<Record<SceneryKind, number>> = {
+  broadleaf: 0.32,
+  conifer: 0.28,
+  birch: 0.18,
+  deadtree: 0.22,
+  cactus: 0.38,
+  boulder: 1.5,
+  mesa: 30,
+};
+
+/** Solid obstacles for a chunk's scenery (trees, boulders, large rocks). */
+export function sceneryColliders(batches: SceneryBatch[]): Collider[] {
+  const out: Collider[] = [];
+  for (const b of batches) {
+    const base = SOLID_RADIUS[b.kind] ?? (b.kind === 'rock' ? 0.7 : 0);
+    if (base <= 0) continue;
+    for (const item of b.items) {
+      const s = typeof item.scale === 'number' ? item.scale : item.scale[0];
+      if (b.kind === 'rock' && s < 1.25) continue;
+      out.push({ type: 'circle', x: item.x, z: item.z, r: base * s });
+    }
+  }
+  return out;
+}
+
+/** Solid obstacles for road-anchored structures (houses, poles, fences, parked cars). */
+export function structureColliders(items: StructurePlacement[]): Collider[] {
+  const out: Collider[] = [];
+  for (const p of items) {
+    const local = (lx: number, lz: number): [number, number] => {
+      const c = Math.cos(p.rot);
+      const s = Math.sin(p.rot);
+      return [p.x + c * lx + s * lz, p.z - s * lx + c * lz];
+    };
+    switch (p.id) {
+      case 'streetlight-pole':
+        out.push({ type: 'circle', x: p.x, z: p.z, r: 0.16 });
+        break;
+      case 'telephone-pole':
+        out.push({ type: 'circle', x: p.x, z: p.z, r: 0.2 });
+        break;
+      case 'sign-post':
+        out.push({ type: 'circle', x: p.x, z: p.z, r: 0.1 });
+        break;
+      case 'mailbox':
+        out.push({ type: 'circle', x: p.x, z: p.z, r: 0.14 });
+        break;
+      case 'fence': {
+        const [x, z] = local(0, FENCE_SECTION / 2);
+        out.push({ type: 'box', x, z, hx: 0.08, hz: FENCE_SECTION / 2 + 0.05, rot: p.rot });
+        break;
+      }
+      case 'guardrail-post': {
+        // Posts are 4 m apart; a thin box between them makes the rail continuous.
+        const [x, z] = local(0, 2);
+        out.push({ type: 'box', x, z, hx: 0.12, hz: 2.05, rot: p.rot });
+        break;
+      }
+      case 'house-a-walls':
+        out.push({ type: 'box', x: p.x, z: p.z, hx: 6.6, hz: 4.6, rot: p.rot });
+        break;
+      case 'house-b-walls': {
+        out.push({ type: 'box', x: p.x, z: p.z, hx: 4.85, hz: 4.1, rot: p.rot });
+        const [x, z] = local(4.75 + 2.1, -0.5);
+        out.push({ type: 'box', x, z, hx: 2.2, hz: 3.6, rot: p.rot });
+        break;
+      }
+      case 'parked-car':
+        out.push({ type: 'box', x: p.x, z: p.z, hx: 0.9, hz: 2.2, rot: p.rot });
+        break;
+    }
+  }
+  return out;
 }
 
 // -----------------------------------------------------------------------------

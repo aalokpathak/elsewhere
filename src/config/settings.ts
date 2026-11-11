@@ -3,12 +3,12 @@ import { suggestPreset, type GraphicsPresetId } from './graphics';
 
 export type LiminalIntensity = 'off' | 'subtle' | 'uncanny';
 export type SpeedUnits = 'kmh' | 'mph';
-export type CameraPreference = 'chase' | 'cockpit';
+export type CameraPreference = 'chase' | 'cockpit' | 'hood' | 'drone';
 
 export interface Settings {
   version: 1;
   audio: { master: number; vehicle: number; ambience: number; music: number; horror: number };
-  graphics: { preset: GraphicsPresetId; resolutionScale: number; adaptiveResolution: boolean; showPerformance: boolean };
+  graphics: { preset: GraphicsPresetId; resolutionScale: number; adaptiveResolution: boolean; showPerformance: boolean; postFx: boolean };
   controls: { cameraSensitivity: number; steeringSensitivity: number; units: SpeedUnits; maxSpeedKmh: number; fov: number };
   comfort: { reduceMotion: boolean; showHud: boolean; showDriveTime: boolean };
   atmosphere: {
@@ -20,6 +20,8 @@ export interface Settings {
   };
   vehicle: { color: string };
   last: { environmentId: EnvironmentId; variantId: string | null; camera: CameraPreference };
+  /** Lifetime totals, shown on the main menu. */
+  stats: { totalKm: number; totalMinutes: number };
 }
 
 export const CAR_COLORS = [
@@ -35,12 +37,13 @@ export function createDefaultSettings(): Settings {
   return {
     version: 1,
     audio: { master: 0.8, vehicle: 0.55, ambience: 0.75, music: 0.35, horror: 0.6 },
-    graphics: { preset: suggestPreset(), resolutionScale: 1, adaptiveResolution: true, showPerformance: false },
+    graphics: { preset: suggestPreset(), resolutionScale: 1, adaptiveResolution: true, showPerformance: false, postFx: true },
     controls: { cameraSensitivity: 1, steeringSensitivity: 1, units: 'kmh', maxSpeedKmh: 130, fov: 62 },
     comfort: { reduceMotion: false, showHud: true, showDriveTime: true },
     atmosphere: { liminal: 'subtle', visualAnomalies: true, horrorAudio: true, atmosphericEffects: true, timeDrift: false },
     vehicle: { color: CAR_COLORS[0].id },
     last: { environmentId: DEFAULT_ENVIRONMENT, variantId: null, camera: 'chase' },
+    stats: { totalKm: 0, totalMinutes: 0 },
   };
 }
 
@@ -64,6 +67,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   const at = obj(r.atmosphere);
   const v = obj(r.vehicle);
   const l = obj(r.last);
+  const st = obj(r.stats);
   return {
     version: 1,
     audio: {
@@ -78,6 +82,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       resolutionScale: num(g.resolutionScale, 0.5, 1.5, d.graphics.resolutionScale),
       adaptiveResolution: bool(g.adaptiveResolution, d.graphics.adaptiveResolution),
       showPerformance: bool(g.showPerformance, d.graphics.showPerformance),
+      postFx: bool(g.postFx, d.graphics.postFx),
     },
     controls: {
       cameraSensitivity: num(c.cameraSensitivity, 0.2, 2.5, d.controls.cameraSensitivity),
@@ -104,7 +109,11 @@ export function sanitizeSettings(raw: unknown): Settings {
     last: {
       environmentId: isEnvironmentId(l.environmentId) ? l.environmentId : d.last.environmentId,
       variantId: typeof l.variantId === 'string' ? l.variantId : null,
-      camera: oneOf(l.camera, ['chase', 'cockpit'] as const, d.last.camera),
+      camera: oneOf(l.camera, ['chase', 'cockpit', 'hood', 'drone'] as const, d.last.camera),
+    },
+    stats: {
+      totalKm: num(st.totalKm, 0, 1e9, 0),
+      totalMinutes: num(st.totalMinutes, 0, 1e9, 0),
     },
   };
 }

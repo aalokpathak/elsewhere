@@ -43,6 +43,11 @@ export class EnvironmentManager {
   /** Sun glow colour shared by fog, mountains and water (matches the sky's glow). */
   readonly sunGlow = new THREE.Color(0, 0, 0);
   private shadowsEnabled = false;
+
+  /** True while the sun is casting real shadows this frame. */
+  get sunShadows(): boolean {
+    return this.shadowsEnabled && this.sun.castShadow;
+  }
   private readonly viewDir = new THREE.Vector3();
 
   constructor(
@@ -125,7 +130,8 @@ export class EnvironmentManager {
     this.sun.intensity = state.sunIntensity * Math.max(0.15, sunUp);
     // No shadow pass when the sun is down or fully hidden (saves a whole render pass).
     if (this.shadowsEnabled) {
-      const want = state.sunElevation > 2.5 && state.sunIntensity > 0.5;
+      // Overcast light is diffuse: no hard shadows (and no shadow pass to pay for).
+      const want = state.sunElevation > 2.5 && state.sunIntensity > 0.5 && state.cloudCover < 0.88;
       if (this.sun.castShadow !== want) this.sun.castShadow = want;
     }
     this.hemi.color.setRGB(...state.hemiSky);

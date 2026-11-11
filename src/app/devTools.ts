@@ -17,6 +17,8 @@ export function installDevTools(getEngine: () => GameEngine | null): void {
       const e = getEngine();
       if (!e) throw new Error('engine not ready');
       if (!document.querySelector('.main-menu')) {
+        e.exitPhotoMode();
+        await wait(150);
         e.pause();
         await wait(200);
         [...document.querySelectorAll('button')].find((b) => b.textContent === 'Main menu')?.click();

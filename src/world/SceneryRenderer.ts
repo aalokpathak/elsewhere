@@ -15,6 +15,7 @@ const TREE_KINDS = new Set<SceneryKind>(['broadleaf', 'conifer', 'birch', 'deadt
 
 function sceneryCapacity(kind: SceneryKind, detail: Detail, profile: GraphicsProfile): number {
   if (kind === 'grass' || kind === 'reed') return profile.grassCapacity;
+  if (kind === 'flower') return Math.max(1, Math.floor(profile.grassCapacity / 3));
   if (kind === 'mesa') return 300;
   if (kind === 'boulder') return 2500;
   if (TREE_KINDS.has(kind)) return detail === 'high' ? 14000 : 26000;
@@ -63,6 +64,7 @@ export class SceneryRenderer {
   private readonly structurePools = new Map<StructureId, InstancePool>();
   private readonly materials: THREE.Material[] = [];
   private readonly foliage = new Map<SceneryKind, THREE.Material>();
+  private readonly geometries = new Map<string, THREE.BufferGeometry>();
   readonly group = new THREE.Group();
 
   readonly solidMaterial: THREE.MeshLambertMaterial;
@@ -134,9 +136,10 @@ export class SceneryRenderer {
       m =
         sway > 0
           ? createFoliageMaterial(this.wind, {
+              upNormals: kind === 'grass' || kind === 'reed' || kind === 'flower',
               sway,
-              side: kind === 'grass' || kind === 'reed' ? THREE.DoubleSide : THREE.FrontSide,
-              flat: kind !== 'grass' && kind !== 'reed',
+              side: kind === 'grass' || kind === 'reed' || kind === 'flower' ? THREE.DoubleSide : THREE.FrontSide,
+              flat: kind !== 'grass' && kind !== 'reed' && kind !== 'flower',
             })
           : this.solidMaterial;
       if (m !== this.solidMaterial) this.track(m);
@@ -145,15 +148,30 @@ export class SceneryRenderer {
     return m;
   }
 
-  private sceneryPool(kind: SceneryKind, detail: Detail): InstancePool {
+  private sceneryGeometry(kind: SceneryKind, detail: Detail): THREE.BufferGeometry {
     const key = `${kind}:${detail}`;
+    let geo = this.geometries.get(key);
+    if (!geo) {
+      geo = buildSceneryGeometry(kind, detail);
+      this.geometries.set(key, geo);
+    }
+    return geo;
+  }
+
+  /**
+   * `near` selects the shadow-casting tier: only scenery in the chunks closest
+   * to the car is drawn into the shadow map, which keeps that pass cheap.
+   */
+  private sceneryPool(kind: SceneryKind, detail: Detail, near: boolean): InstancePool {
+    const shadows = near && this.profile.shadows === 'all' && TREE_KINDS.has(kind) && detail === 'high';
+    const key = `${kind}:${detail}:${shadows ? 1 : 0}`;
     let pool = this.sceneryPools.get(key);
     if (!pool) {
-      const shadows = this.profile.shadows === 'all' && TREE_KINDS.has(kind) && detail === 'high';
-      pool = new InstancePool(buildSceneryGeometry(kind, detail), this.foliageMaterial(kind), sceneryCapacity(kind, detail, this.profile), {
+      const capacity = sceneryCapacity(kind, detail, this.profile);
+      pool = new InstancePool(this.sceneryGeometry(kind, detail), this.foliageMaterial(kind), shadows ? Math.ceil(capacity / 3) : capacity, {
         colors: true,
         castShadow: shadows,
-        receiveShadow: kind !== 'grass',
+        receiveShadow: kind !== 'grass' && kind !== 'flower',
         name: key,
       });
       this.group.add(pool.mesh);
@@ -201,9 +219,9 @@ export class SceneryRenderer {
     list.push(h);
   }
 
-  addScenery(batches: SceneryBatch[], refs: InstanceRefs = new Map()): InstanceRefs {
+  addScenery(batches: SceneryBatch[], near = false, refs: InstanceRefs = new Map()): InstanceRefs {
     for (const b of batches) {
-      const pool = this.sceneryPool(b.kind, b.detail);
+      const pool = this.sceneryPool(b.kind, b.detail, near);
       for (const item of b.items) this.push(refs, pool, item);
     }
     return refs;
@@ -257,6 +275,8 @@ export class SceneryRenderer {
 
   dispose(): void {
     this.forEachPool((p) => p.dispose(true));
+    this.geometries.forEach((g) => g.dispose());
+    this.geometries.clear();
     this.sceneryPools.clear();
     this.structurePools.clear();
     for (const m of this.materials) m.dispose();

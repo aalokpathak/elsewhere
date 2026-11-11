@@ -32,6 +32,8 @@ export interface TouchInputState {
 export class InputManager {
   /** When false, driving keys are ignored and default browser behaviour is kept. */
   driving = false;
+  /** Accumulated wheel delta (photo-mode zoom). */
+  zoomDelta = 0;
   private readonly down = new Set<DriveAction>();
   private edges: EdgeAction[] = [];
   private readonly touch: TouchInputState = { steer: 0, throttle: 0, brake: 0 };
@@ -53,6 +55,7 @@ export class InputManager {
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.clear);
     this.canvas.addEventListener('pointerdown', this.onPointerDown);
+    this.canvas.addEventListener('wheel', this.onWheel, { passive: true });
     window.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('pointerup', this.onPointerUp);
     window.addEventListener('pointercancel', this.onPointerUp);
@@ -65,6 +68,7 @@ export class InputManager {
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.clear);
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
+    this.canvas.removeEventListener('wheel', this.onWheel);
     window.removeEventListener('pointermove', this.onPointerMove);
     window.removeEventListener('pointerup', this.onPointerUp);
     window.removeEventListener('pointercancel', this.onPointerUp);
@@ -88,9 +92,14 @@ export class InputManager {
     if (drive) this.down.delete(drive);
   };
 
+  private onWheel = (e: WheelEvent): void => {
+    this.zoomDelta += e.deltaY;
+  };
+
   private onPointerDown = (e: PointerEvent): void => {
-    if (e.pointerType === 'touch') return; // touch uses the on-screen controls
-    if (e.button !== 0 && e.button !== 2) return;
+    // Touches on the canvas (outside the on-screen pads) also look around.
+    if (this.dragId !== null) return;
+    if (e.pointerType !== 'touch' && e.button !== 0 && e.button !== 2) return;
     this.dragId = e.pointerId;
     this.lastX = e.clientX;
     this.lastY = e.clientY;
@@ -134,6 +143,16 @@ export class InputManager {
     const e = this.edges;
     this.edges = [];
     return e;
+  }
+
+  consumeZoom(): number {
+    const z = this.zoomDelta;
+    this.zoomDelta = 0;
+    return z;
+  }
+
+  get lookBack(): boolean {
+    return this.down.has('lookBack');
   }
 
   consumeLook(): [number, number] {

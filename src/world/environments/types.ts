@@ -97,7 +97,8 @@ export type SceneryKind =
   | 'cactus'
   | 'deadtree'
   | 'mesa'
-  | 'reed';
+  | 'reed'
+  | 'flower';
 
 export interface SceneryLayer {
   kind: SceneryKind;

@@ -24,7 +24,7 @@ export interface GraphicsProfile {
   clouds: boolean;
   /** Bloom, film grain and multisampled HDR rendering. */
   postFx: boolean;
-  /** MSAA samples for the HDR render target (post-processing path). */
+  /** MSAA samples for the HDR render target; 0 uses single-pass FXAA instead. */
   msaa: number;
   /** Real point lights used indoors. */
   indoorLights: number;
@@ -78,10 +78,10 @@ export const GRAPHICS_PRESETS: Record<GraphicsPresetId, GraphicsProfile> = {
     grassCapacity: 70000,
     shadows: 'all',
     shadowRange: 58,
-    shadowMapSize: 2048,
+    shadowMapSize: 1024,
     clouds: true,
     postFx: true,
-    msaa: 2,
+    msaa: 0,
     indoorLights: 3,
     precipitation: 2600,
     particles: 220,

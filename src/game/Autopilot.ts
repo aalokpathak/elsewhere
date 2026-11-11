@@ -10,7 +10,7 @@ export class Autopilot {
   constructor(
     private readonly road: RoadGenerator,
     private readonly laneOffset: number,
-    private readonly cruiseSpeed: number,
+    public cruiseSpeed: number,
   ) {}
 
   drive(state: VehicleState, params: VehicleParams, carS: number, out: VehicleInput): VehicleInput {

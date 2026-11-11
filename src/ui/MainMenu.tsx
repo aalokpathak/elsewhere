@@ -6,7 +6,12 @@ interface Props {
   environmentId: EnvironmentId;
   variantId: string | null;
   previewLoading: boolean;
+  loadingProgress: number;
   leaving: boolean;
+  /** Shared road number from a link, if any. */
+  sharedSeed: number | null;
+  totalKm: number;
+  units: 'kmh' | 'mph';
   onSelect: (id: EnvironmentId) => void;
   onVariant: (id: string) => void;
   onStart: () => void;
@@ -20,6 +25,7 @@ interface Props {
  */
 export function MainMenu(p: Props) {
   const env = getEnvironment(p.environmentId);
+  const distance = p.units === 'mph' ? `${Math.round(p.totalKm * 0.621371)} miles` : `${Math.round(p.totalKm)} km`;
   return (
     <div className={`main-menu${p.leaving ? ' is-leaving' : ''}`}>
       <div className="menu-scrim" />
@@ -35,7 +41,7 @@ export function MainMenu(p: Props) {
           </button>
           <span className="menu-destination">
             {env.name}
-            {p.previewLoading && <span className="menu-spinner" aria-label="Loading preview" />}
+            {p.sharedSeed !== null && <span className="menu-shared">shared road #{p.sharedSeed}</span>}
           </span>
         </div>
 
@@ -58,8 +64,19 @@ export function MainMenu(p: Props) {
             Controls
           </button>
         </nav>
-        <p className="menu-footnote">No goals. No timer. Drive for as long as you like.</p>
+        <p className="menu-footnote">
+          No goals. No timer. Drive for as long as you like.
+          {p.totalKm >= 1 && <span> You have driven {distance} so far.</span>}
+        </p>
       </div>
+      {p.previewLoading && (
+        <div className="menu-loading" role="status" aria-live="polite">
+          <span>Generating the road…</span>
+          <span className="menu-loading-bar" aria-hidden="true">
+            <span style={{ transform: `scaleX(${Math.max(0.03, Math.min(1, p.loadingProgress))})` }} />
+          </span>
+        </div>
+      )}
     </div>
   );
 }

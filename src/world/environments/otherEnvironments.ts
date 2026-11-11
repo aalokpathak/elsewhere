@@ -38,7 +38,8 @@ export const alpineRoads: EnvironmentPreset = {
     { kind: 'conifer', density: 13, minRoadDistance: 8, scale: [0.8, 1.5], clusterFrequency: 1 / 180, clusterThreshold: -0.1, maxSlope: 1.05, maxHeight: 780, tints: ['#ffffff', '#d8e2d4', '#e8eee0'] },
     { kind: 'rock', density: 6, minRoadDistance: 6, scale: [0.6, 2.4], clusterFrequency: 1 / 120, clusterThreshold: 0.1, maxSlope: 3, tints: ['#ffffff', '#e6e6e8'] },
     { kind: 'boulder', density: 0.8, minRoadDistance: 14, scale: [1, 2], clusterFrequency: 1 / 220, clusterThreshold: 0.3, maxSlope: 2, tints: ['#ffffff'] },
-    { kind: 'grass', density: 500, minRoadDistance: 5, scale: [0.5, 1.0], clusterFrequency: 1 / 40, clusterThreshold: 0, maxSlope: 0.8, maxHeight: 740, tints: ['#e8ecc8'], nearOnly: true },
+    { kind: 'grass', density: 900, minRoadDistance: 5, scale: [0.5, 1.0], clusterFrequency: 1 / 40, clusterThreshold: 0, maxSlope: 0.8, maxHeight: 740, tints: ['#e8ecc8'], nearOnly: true },
+    { kind: 'flower', density: 160, minRoadDistance: 5.8, maxRoadDistance: 60, scale: [0.8, 1.4], clusterFrequency: 1 / 24, clusterThreshold: 0.3, maxSlope: 0.7, maxHeight: 730, tints: ['#ffffff', '#8fa8e8', '#f2d868'], nearOnly: true },
   ],
   roadside: [
     { kind: 'delineator', spacing: 40, offset: 0.7, side: 'both', fill: 0.85 },
@@ -105,7 +106,7 @@ export const mistyForest: EnvironmentPreset = {
     { kind: 'birch', density: 5, minRoadDistance: 6.5, scale: [0.8, 1.3], clusterFrequency: 1 / 90, clusterThreshold: 0.2, maxSlope: 0.7, tints: ['#ffffff', '#e8e4c4'] },
     { kind: 'deadtree', density: 1.2, minRoadDistance: 7, scale: [0.8, 1.2], clusterFrequency: 0, clusterThreshold: 0, maxSlope: 0.7, tints: ['#ffffff'] },
     { kind: 'shrub', density: 12, minRoadDistance: 5, scale: [0.5, 1.1], clusterFrequency: 1 / 60, clusterThreshold: -0.2, maxSlope: 0.9, tints: ['#d8e2c8', '#ffffff'] },
-    { kind: 'grass', density: 600, minRoadDistance: 5, scale: [0.6, 1.2], clusterFrequency: 1 / 25, clusterThreshold: -0.2, maxSlope: 0.9, tints: ['#c8d4b0'], nearOnly: true },
+    { kind: 'grass', density: 1000, minRoadDistance: 5, scale: [0.6, 1.2], clusterFrequency: 1 / 25, clusterThreshold: -0.2, maxSlope: 0.9, tints: ['#c8d4b0'], nearOnly: true },
   ],
   roadside: [{ kind: 'delineator', spacing: 50, offset: 0.7, side: 'both', fill: 0.7 }],
   mountains: [
@@ -229,7 +230,7 @@ export const midnightHighway: EnvironmentPreset = {
     { kind: 'conifer', density: 3, minRoadDistance: 10, scale: [0.8, 1.4], clusterFrequency: 1 / 170, clusterThreshold: 0.3, maxSlope: 0.6, tints: ['#ffffff'] },
     { kind: 'broadleaf', density: 2, minRoadDistance: 10, scale: [0.8, 1.3], clusterFrequency: 1 / 200, clusterThreshold: 0.35, maxSlope: 0.6, tints: ['#ffffff'] },
     { kind: 'shrub', density: 5, minRoadDistance: 6, scale: [0.6, 1.2], clusterFrequency: 1 / 90, clusterThreshold: 0.1, maxSlope: 0.7, tints: ['#ffffff'] },
-    { kind: 'grass', density: 500, minRoadDistance: 5.6, scale: [0.7, 1.3], clusterFrequency: 1 / 40, clusterThreshold: -0.2, maxSlope: 0.9, tints: ['#d8dcc0'], nearOnly: true },
+    { kind: 'grass', density: 900, minRoadDistance: 5.6, scale: [0.7, 1.3], clusterFrequency: 1 / 40, clusterThreshold: -0.2, maxSlope: 0.9, tints: ['#d8dcc0'], nearOnly: true },
   ],
   roadside: [
     { kind: 'delineator', spacing: 50, offset: 0.9, side: 'both', fill: 0.95 },
@@ -242,14 +243,14 @@ export const midnightHighway: EnvironmentPreset = {
   ],
   variants: [
     variant({
-      id: 'clear-dark', name: 'Clear Darkness', sunElevation: 38, sunAzimuth: -40, sunColor: '#8ea4cc', sunIntensity: 0.22,
-      skyZenith: '#03050b', skyHorizon: '#141b2a', skyGround: '#07090e', hemiSky: '#2a3550', hemiGround: '#0a0c0e', hemiIntensity: 0.28,
+      id: 'clear-dark', name: 'Clear Darkness', sunElevation: 38, sunAzimuth: -40, sunColor: '#8ea4cc', sunIntensity: 0.34,
+      skyZenith: '#03050b', skyHorizon: '#141b2a', skyGround: '#07090e', hemiSky: '#2a3550', hemiGround: '#0a0c0e', hemiIntensity: 0.42,
       fogNear: 60, fogFar: 700, cloudCover: 0.15, cloudColor: '#1a2030', wind: 0.2, headlights: true, lights: 1, stars: 1, sunDisc: 0.7,
       exposure: 1.15,
     }),
     variant({
-      id: 'night-fog', name: 'Fog', sunElevation: 38, sunAzimuth: -40, sunColor: '#8090a8', sunIntensity: 0.12,
-      skyZenith: '#0a0d12', skyHorizon: '#1d232b', skyGround: '#0d1014', hemiSky: '#2c3440', hemiGround: '#0a0c0e', hemiIntensity: 0.3,
+      id: 'night-fog', name: 'Fog', sunElevation: 38, sunAzimuth: -40, sunColor: '#8090a8', sunIntensity: 0.2,
+      skyZenith: '#0c1016', skyHorizon: '#242b35', skyGround: '#0f1217', hemiSky: '#343e4c', hemiGround: '#0c0e10', hemiIntensity: 0.46,
       fogNear: 8, fogFar: 150, cloudCover: 0.8, cloudColor: '#1d232b', wind: 0.1, headlights: true, lights: 1, sunDisc: 0,
       exposure: 1.15,
     }),

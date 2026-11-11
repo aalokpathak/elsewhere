@@ -9,11 +9,12 @@ import {
   type SurfaceUniforms,
 } from '../world/materials/SurfaceMaterial';
 import { ChunkManager } from '../world/ChunkManager';
+import { ColliderGrid } from '../world/Colliders';
 import { DistantScenery } from '../world/DistantScenery';
 import type { EnvironmentPreset } from '../world/environments/types';
 import { createRoadPoint, createRoadQuery, RoadGenerator, type RoadQuery } from '../world/RoadGenerator';
 import { buildSegmentMeshes, roadCrown, type BuiltSegment, type SegmentMaterials } from '../world/RoadMeshBuilder';
-import { placeIndoor, placeRoadside, type StructurePlacement } from '../world/SceneryGenerator';
+import { placeIndoor, placeRoadside, structureColliders, type StructurePlacement } from '../world/SceneryGenerator';
 import { SceneryRenderer, type InstanceRefs } from '../world/SceneryRenderer';
 import { TerrainSampler } from '../world/TerrainGenerator';
 import type { AtmosphereState } from '../world/WeatherSystem';
@@ -49,6 +50,8 @@ export class WorldManager {
   readonly distant: DistantScenery;
   readonly surfaceUniforms: SurfaceUniforms = createSurfaceUniforms();
   readonly wind: WindUniforms = createWindUniforms();
+  /** Solid obstacles near the car (trees, houses, poles, rails). */
+  readonly colliders = new ColliderGrid();
   private readonly chunks: ChunkManager | null;
   private readonly segments = new Map<number, LiveSegment>();
   private readonly materials: THREE.Material[] = [];
@@ -101,7 +104,7 @@ export class WorldManager {
 
     if (env.kind === 'outdoor') {
       this.terrainMaterial = this.track(createTerrainMaterial());
-      this.chunks = new ChunkManager(this.root, env, this.terrain, this.road, profile, this.terrainMaterial, this.scenery, seed);
+      this.chunks = new ChunkManager(this.root, env, this.terrain, this.road, profile, this.terrainMaterial, this.scenery, seed, this.colliders);
     } else {
       this.terrainMaterial = null;
       this.chunks = null;
@@ -197,6 +200,7 @@ export class WorldManager {
       });
     }
     const refs = this.scenery.addStructures([...furniture.placements, ...posts]);
+    this.colliders.addGroup(`seg:${info.index}`, structureColliders([...furniture.placements, ...posts]));
     const lights: LiveSegment['lights'] = [];
     for (const pl of furniture.placements) {
       if (!pl.light) continue;
@@ -212,6 +216,7 @@ export class WorldManager {
     const seg = this.segments.get(index);
     if (!seg) return;
     this.scenery.remove(seg.refs);
+    this.colliders.removeGroup(`seg:${index}`);
     seg.group.removeFromParent();
     for (const g of seg.geometries) g.dispose();
     this.segments.delete(index);
@@ -282,6 +287,7 @@ export class WorldManager {
       pendingChunks: this.chunks?.pending ?? 0,
       segments: this.segments.size,
       instances: this.scenery.instanceCount,
+      colliders: this.colliders.colliderCount,
       roadSamples: this.road.sampleCount,
     };
   }
@@ -291,6 +297,7 @@ export class WorldManager {
     this.disposed = true;
     for (const index of [...this.segments.keys()]) this.disposeSegment(index);
     this.chunks?.dispose();
+    this.colliders.clear();
     this.distant.dispose();
     this.scenery.dispose();
     for (const m of this.materials) m.dispose();

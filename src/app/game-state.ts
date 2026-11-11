@@ -23,6 +23,7 @@ export interface HudSnapshot {
   speedKmh: number;
   camera: CameraMode;
   cruise: boolean;
+  autoDrive: boolean;
   elapsed: number;
   odometerKm: number;
   environment: string;
@@ -53,6 +54,10 @@ export interface EngineEvents {
   camera: CameraMode;
   toggleHud: void;
   fade: boolean;
+  /** True once the current world has rendered its first frame (canvas fades in). */
+  live: boolean;
+  photo: boolean;
+  autoDrive: boolean;
   error: string;
   variant: string;
 }

@@ -89,23 +89,36 @@ function rock(size: number, d: Detail): THREE.BufferGeometry {
 }
 
 function grass(): THREE.BufferGeometry {
-  // A clump of thin blades. Colours are greyscale; the instance tint carries hue
-  // so each clump matches the ground beneath it.
+  // A clump of thin, curved blades (two segments each). Colours are greyscale;
+  // the instance tint carries hue so each clump matches the ground beneath it.
   const pos: number[] = [];
   const col: number[] = [];
-  const blades = 12;
+  const blades = 8;
+  const rnd = (i: number, k: number) => (Math.sin(i * k) + 1) / 2;
   for (let i = 0; i < blades; i++) {
-    const a = (i / blades) * Math.PI * 2 + Math.sin(i * 12.7) * 0.6;
-    const r = 0.06 + ((Math.sin(i * 7.1) + 1) / 2) * 0.22;
+    const a = (i / blades) * Math.PI * 2 + Math.sin(i * 12.7) * 0.7;
+    const r = 0.03 + rnd(i, 7.1) * 0.2;
     const bx = Math.cos(a) * r;
     const bz = Math.sin(a) * r;
-    const h = 0.28 + ((Math.sin(i * 3.3) + 1) / 2) * 0.32;
-    const w = 0.045;
-    const lean = 0.18 + ((Math.sin(i * 5.9) + 1) / 2) * 0.2;
+    const h = 0.22 + rnd(i, 3.3) * 0.34;
+    const w = 0.028;
+    const lean = 0.1 + rnd(i, 5.9) * 0.2;
     const px = -Math.sin(a) * w;
     const pz = Math.cos(a) * w;
-    pos.push(bx - px, 0, bz - pz, bx + px, 0, bz + pz, bx + Math.cos(a) * lean, h, bz + Math.sin(a) * lean);
-    col.push(0.6, 0.62, 0.52, 0.6, 0.62, 0.52, 1.12, 1.14, 0.92);
+    const lx = Math.cos(a);
+    const lz = Math.sin(a);
+    const mh = h * 0.58;
+    const ml = lean * 0.32;
+    const b0 = [bx - px, 0, bz - pz];
+    const b1 = [bx + px, 0, bz + pz];
+    const m0 = [bx - px * 0.7 + lx * ml, mh, bz - pz * 0.7 + lz * ml];
+    const m1 = [bx + px * 0.7 + lx * ml, mh, bz + pz * 0.7 + lz * ml];
+    const tip = [bx + lx * lean, h, bz + lz * lean];
+    pos.push(...b0, ...b1, ...m1, ...b0, ...m1, ...m0, ...m0, ...m1, ...tip);
+    const cb = [0.56, 0.58, 0.48];
+    const cm = [0.86, 0.88, 0.72];
+    const ct = [1.14, 1.16, 0.94];
+    col.push(...cb, ...cb, ...cm, ...cb, ...cm, ...cm, ...cm, ...cm, ...ct);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -115,6 +128,39 @@ function grass(): THREE.BufferGeometry {
   const n = g.getAttribute('normal') as THREE.BufferAttribute;
   for (let i = 0; i < n.count; i++) n.setXYZ(i, n.getX(i) * 0.3, 1, n.getZ(i) * 0.3);
   n.needsUpdate = true;
+  g.computeBoundingSphere();
+  return g;
+}
+
+function flower(): THREE.BufferGeometry {
+  // A small patch of wildflowers: thin stems with bright heads. Heads are white
+  // so the per-instance tint gives each patch its colour.
+  const pos: number[] = [];
+  const col: number[] = [];
+  const stems = 9;
+  for (let i = 0; i < stems; i++) {
+    const a = i * 2.4 + 0.3;
+    const r = 0.05 + ((Math.sin(i * 4.7) + 1) / 2) * 0.34;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    const h = 0.14 + ((Math.sin(i * 2.9) + 1) / 2) * 0.16;
+    const s = 0.008;
+    pos.push(x - s, 0, z, x + s, 0, z, x, h, z);
+    col.push(0.22, 0.36, 0.16, 0.22, 0.36, 0.16, 0.3, 0.46, 0.2);
+    const q = 0.032;
+    // Two crossed diamonds make a head that reads from any angle.
+    for (const [ux, uz] of [[1, 0], [0, 1]]) {
+      pos.push(x - ux * q, h, z - uz * q, x + ux * q, h, z + uz * q, x, h + q * 1.3, z);
+      pos.push(x - ux * q, h, z - uz * q, x, h - q * 0.5, z, x + ux * q, h, z + uz * q);
+      for (let k = 0; k < 6; k++) col.push(1.25, 1.25, 1.25);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const normals = new Float32Array(pos.length);
+  for (let i = 1; i < normals.length; i += 3) normals[i] = 1;
+  g.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
   g.computeBoundingSphere();
   return g;
 }
@@ -186,6 +232,8 @@ export function buildSceneryGeometry(kind: SceneryKind, detail: Detail): THREE.B
     case 'grass':
     case 'reed':
       return grass();
+    case 'flower':
+      return flower();
     case 'cactus':
       return cactus(detail);
     case 'deadtree':
@@ -203,6 +251,7 @@ export const SWAY: Partial<Record<SceneryKind, number>> = {
   shrub: 0.03,
   grass: 0.16,
   reed: 0.16,
+  flower: 0.12,
   deadtree: 0.004,
 };
 

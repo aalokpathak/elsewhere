@@ -90,7 +90,7 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
  */
 export function createFoliageMaterial(
   wind: WindUniforms,
-  opts: { sway: number; side?: THREE.Side; flat?: boolean },
+  opts: { sway: number; side?: THREE.Side; flat?: boolean; upNormals?: boolean },
 ): THREE.MeshLambertMaterial {
   const mat = new THREE.MeshLambertMaterial({
     vertexColors: true,
@@ -120,8 +120,16 @@ export function createFoliageMaterial(
         transformed.z += cos(uTime * 1.4 + es_ph * 1.3) * es_w * es_h * 0.5;
         `,
       );
+    if (opts.upNormals) {
+      // Blades are double-sided but should light like the ground they grow
+      // from, so ignore the back-face normal flip.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <normal_fragment_begin>',
+        '#include <normal_fragment_begin>\n  normal = normalize(vNormal);',
+      );
+    }
     applyAtmosphere(shader);
   };
-  mat.customProgramCacheKey = () => `es-foliage2-${opts.sway}-${opts.side ?? 0}-${opts.flat ?? true}`;
+  mat.customProgramCacheKey = () => `es-foliage3-${opts.sway}-${opts.side ?? 0}-${opts.flat ?? true}-${opts.upNormals ? 1 : 0}`;
   return mat;
 }

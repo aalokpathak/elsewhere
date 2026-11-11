@@ -34,7 +34,8 @@ export const greenHighlands: EnvironmentPreset = {
     { kind: 'conifer', density: 1.6, minRoadDistance: 10, scale: [0.8, 1.3], clusterFrequency: 1 / 210, clusterThreshold: 0.45, maxSlope: 0.6, tints: ['#ffffff', '#dfe8d8'] },
     { kind: 'shrub', density: 10, minRoadDistance: 6, scale: [0.6, 1.4], clusterFrequency: 1 / 90, clusterThreshold: 0.1, maxSlope: 0.7, tints: ['#ffffff', '#e4ecc8', '#f0e4c0'] },
     { kind: 'rock', density: 2.2, minRoadDistance: 6, scale: [0.5, 1.6], clusterFrequency: 1 / 140, clusterThreshold: 0.3, maxSlope: 1.5, tints: ['#ffffff', '#e8e2d8'] },
-    { kind: 'grass', density: 900, minRoadDistance: 5.6, scale: [0.7, 1.4], clusterFrequency: 1 / 40, clusterThreshold: -0.3, maxSlope: 0.9, tints: ['#ffffff'], nearOnly: true },
+    { kind: 'grass', density: 1700, minRoadDistance: 5.6, scale: [0.7, 1.4], clusterFrequency: 1 / 40, clusterThreshold: -0.3, maxSlope: 0.9, tints: ['#ffffff'], nearOnly: true },
+    { kind: 'flower', density: 300, minRoadDistance: 5.8, maxRoadDistance: 60, scale: [0.8, 1.4], clusterFrequency: 1 / 24, clusterThreshold: 0.3, maxSlope: 0.7, tints: ['#f6f0d6', '#f2cf4a', '#b78ad8', '#e98a9c', '#ffffff'], nearOnly: true },
   ],
   roadside: [
     { kind: 'fence', spacing: 3.2, offset: 4.5, side: 'left', fill: 0.55 },

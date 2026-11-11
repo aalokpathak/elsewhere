@@ -744,7 +744,32 @@ export class AudioManager {
     g.linearRampToValueAtTime(1, t + 8 + seconds);
   }
 
-  playOneShot(kind: 'splash' | 'scrape' | 'click'): void {
+  /** A friendly two-tone horn. */
+  playHorn(): void {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 1800;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.16, t + 0.02);
+    g.gain.setValueAtTime(0.16, t + 0.32);
+    g.gain.linearRampToValueAtTime(0, t + 0.42);
+    lp.connect(g).connect(this.buses.vehicle);
+    g.connect(this.reverbSend);
+    for (const f of [392, 494]) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = f;
+      o.connect(lp);
+      o.start(t);
+      o.stop(t + 0.45);
+    }
+  }
+
+  playOneShot(kind: 'splash' | 'scrape' | 'click' | 'thud'): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const ctx = this.ctx;
     const t = ctx.currentTime;
@@ -756,6 +781,11 @@ export class AudioManager {
       f.frequency.value = 1200;
       g.gain.setValueAtTime(0.4, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    } else if (kind === 'thud') {
+      f.type = 'lowpass';
+      f.frequency.value = 260;
+      g.gain.setValueAtTime(0.7, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
     } else if (kind === 'scrape') {
       f.type = 'bandpass';
       f.frequency.value = 1800;

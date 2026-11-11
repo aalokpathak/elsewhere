@@ -3,7 +3,8 @@ import type { GraphicsProfile } from '../config/graphics';
 import { buildChunkData, lodForDistance, planChunks, type ChunkPlanEntry } from './ChunkBuilder';
 import type { EnvironmentPreset } from './environments/types';
 import type { RoadGenerator } from './RoadGenerator';
-import { placeChunkScenery } from './SceneryGenerator';
+import type { ColliderGrid } from './Colliders';
+import { placeChunkScenery, sceneryColliders } from './SceneryGenerator';
 import type { InstanceRefs, SceneryRenderer } from './SceneryRenderer';
 import type { TerrainSampler } from './TerrainGenerator';
 
@@ -44,6 +45,7 @@ export class ChunkManager {
     private readonly material: THREE.Material,
     private readonly scenery: SceneryRenderer,
     private readonly seed: number,
+    private readonly colliders: ColliderGrid | null = null,
   ) {
     this.group.name = 'terrain';
     parent.add(this.group);
@@ -158,7 +160,12 @@ export class ChunkManager {
     // Swap in place so a re-LOD never leaves a hole.
     const old = this.chunks.get(e.key);
     if (old) this.disposeChunk(old);
-    const refs = this.scenery.addScenery(batches);
+    const refs = this.scenery.addScenery(batches, e.lod === 0);
+    // Solid obstacles only matter close to the car.
+    if (this.colliders) {
+      if (e.lod <= 1) this.colliders.addGroup(`chunk:${e.key}`, sceneryColliders(batches));
+      else this.colliders.removeGroup(`chunk:${e.key}`);
+    }
     this.group.add(mesh);
     this.chunks.set(e.key, { key: e.key, ix: e.ix, iz: e.iz, lod: e.lod, mesh, refs });
     this.builtTotal++;
@@ -166,6 +173,7 @@ export class ChunkManager {
 
   private disposeChunk(chunk: TerrainChunk): void {
     this.scenery.remove(chunk.refs);
+    this.colliders?.removeGroup(`chunk:${chunk.key}`);
     chunk.mesh.removeFromParent();
     chunk.mesh.geometry.dispose();
     this.chunks.delete(chunk.key);

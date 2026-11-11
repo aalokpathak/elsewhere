@@ -53,6 +53,10 @@ float fbm(vec2 p) {
   }
   return s;
 }
+// Two-octave version for the (blurry) self-shadow sample.
+float fbmLow(vec2 p) {
+  return 0.5 * vnoise(p) + 0.25 * vnoise(p * 2.03 + vec2(1.7, 9.2)) + 0.09;
+}
 
 void main() {
   vec3 d = normalize(vDir);
@@ -90,8 +94,8 @@ void main() {
     float fade = smoothstep(0.0, 0.18, h);
     // Self-shadowing: denser cloud between this point and the sun reads darker.
     vec2 toSun = normalize(uSunDir.xz + vec2(1e-4)) * 0.09;
-    float n2 = fbm((uv + toSun) * 1.6);
-    float shade = clamp((n2 - n) * 2.6 + 0.35 + (n - 0.5) * 0.9, 0.0, 1.0);
+    float n2 = fbmLow((uv + toSun) * 1.6);
+    float shade = clamp((n2 - fbmLow(uv * 1.6)) * 3.2 + 0.35 + (n - 0.5) * 0.9, 0.0, 1.0);
     float lit = mix(1.14, 0.62, shade);
     vec3 cloud = uCloudColor * lit;
     // Thin edges glow when the sun is behind them (silver lining).

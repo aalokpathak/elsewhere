@@ -13,7 +13,7 @@ export const WHEEL_RADIUS = 0.34;
 export const WHEELBASE = 2.64;
 export const TRACK = 1.55;
 export const DRIVER_SEAT = new THREE.Vector3(0.36, 1.17, -0.28);
-export const HOOD_CAMERA = new THREE.Vector3(0, 1.2, 0.72);
+export const HOOD_CAMERA = new THREE.Vector3(0, 1.17, 1.12);
 
 export interface CarVisualState {
   steerAngle: number;
@@ -28,6 +28,8 @@ export interface CarVisualState {
   units: 'kmh' | 'mph';
   /** 0 = daylight, 1 = darkness; drives the fill light. */
   darkness: number;
+  /** Opacity of the soft contact shadow under the car. */
+  contactShadow: number;
   /** Suspension pose (radians / metres). */
   pitch: number;
   roll: number;
@@ -38,8 +40,8 @@ export interface CarVisualState {
 // Key cross-sections from tail to nose:
 // [z, wBot, wBelt, yBot, yBelt, yTop, wTop, crown]
 const KEYS: number[][] = [
-  [-2.24, 0.62, 0.74, 0.44, 0.84, 0.9, 0.6, 0.0],
-  [-2.17, 0.79, 0.86, 0.35, 0.92, 1.0, 0.71, 0.01],
+  [-2.23, 0.77, 0.85, 0.4, 0.9, 0.975, 0.71, 0.004],
+  [-2.12, 0.82, 0.885, 0.32, 0.945, 1.025, 0.735, 0.012],
   [-1.96, 0.84, 0.895, 0.3, 0.955, 1.035, 0.74, 0.015],
   [-1.72, 0.86, 0.905, 0.27, 0.965, 1.05, 0.73, 0.015],
   [-1.45, 0.87, 0.91, 0.25, 0.97, 1.23, 0.64, 0.015],
@@ -55,7 +57,7 @@ const KEYS: number[][] = [
   [1.7, 0.86, 0.895, 0.25, 0.9, 0.945, 0.7, 0.02],
   [2.0, 0.82, 0.87, 0.27, 0.855, 0.89, 0.66, 0.015],
   [2.2, 0.76, 0.82, 0.31, 0.79, 0.815, 0.6, 0.008],
-  [2.29, 0.62, 0.72, 0.4, 0.7, 0.72, 0.5, 0.0],
+  [2.27, 0.71, 0.79, 0.36, 0.735, 0.765, 0.56, 0.004],
 ];
 
 /** Cubic Hermite interpolation of the key cross-sections at z. */
@@ -79,7 +81,9 @@ function sectionAt(z: number): number[] {
   return out;
 }
 
-const RING = 18;
+/** Points per cross-section ring (the shoulder point is doubled to crease the beltline). */
+const HALF = 11;
+const RING = HALF * 2 - 2;
 const GLASS_SIDE: [number, number][] = [
   [-1.5, -0.44],
   [-0.33, 0.8],
@@ -106,6 +110,7 @@ function buildBody(): THREE.BufferGeometry {
       [wBelt, yBot + (yBelt - yBot) * 0.48],
       [wBelt * 0.99, yBelt - 0.03],
       [shoulder, yBelt],
+      [shoulder, yBelt],
       [Math.min(shoulder, wTop * 1.05), Math.max(yBelt + 0.004, yTop - 0.075)],
       [wTop * 0.86, yTop - 0.016],
       [wTop * 0.45, yTop],
@@ -120,8 +125,8 @@ function buildBody(): THREE.BufferGeometry {
         half[4][1] = Math.max(half[4][1], top + 0.03);
       }
     }
-    for (let k = 0; k <= 9; k++) positions.push(half[k][0], half[k][1], z);
-    for (let k = 8; k >= 1; k--) positions.push(-half[k][0], half[k][1], z);
+    for (let k = 0; k < HALF; k++) positions.push(half[k][0], half[k][1], z);
+    for (let k = HALF - 2; k >= 1; k--) positions.push(-half[k][0], half[k][1], z);
   }
   // End caps.
   const capRear = positions.length / 3;
@@ -136,15 +141,16 @@ function buildBody(): THREE.BufferGeometry {
   for (let s = 0; s < stations - 1; s++) {
     const zm = (zs[s] + zs[s + 1]) / 2;
     for (let j = 0; j < RING; j++) {
-      const k = j < 9 ? j : 17 - j;
+      const k = j < HALF - 1 ? j : RING - 1 - j;
+      if (k === 5) continue; // zero-width crease strip
       const a = s * RING + j;
       const b = s * RING + ((j + 1) % RING);
       const c = (s + 1) * RING + j;
       const d = (s + 1) * RING + ((j + 1) % RING);
       let g = 0;
       if (k <= 1) g = 2;
-      else if (k === 5 && GLASS_SIDE.some((r) => inRange(zm, r))) g = 1;
-      else if (k >= 7 && (inRange(zm, WINDSCREEN) || inRange(zm, REAR_GLASS))) g = 1;
+      else if (k === 6 && GLASS_SIDE.some((r) => inRange(zm, r))) g = 1;
+      else if (k >= 8 && (inRange(zm, WINDSCREEN) || inRange(zm, REAR_GLASS))) g = 1;
       groups[g].push(a, c, b, b, c, d);
     }
   }
@@ -200,7 +206,7 @@ varying vec3 vNormalV;
 varying vec3 vViewV;
 void main() {
   float rim = abs(dot(normalize(vNormalV), normalize(vViewV)));
-  float a = pow(rim, 1.6) * pow(1.0 - vAlong, 1.7) * uOpacity;
+  float a = smoothstep(0.0, 0.45, rim) * pow(clamp(1.0 - vAlong, 0.0, 1.0), 1.5) * uOpacity;
   gl_FragColor = vec4(uColor * a, a);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -222,6 +228,7 @@ export class CarModel {
   private readonly tailLens: THREE.MeshStandardMaterial;
   private readonly reverseLens: THREE.MeshStandardMaterial;
   private readonly beamMaterial: THREE.ShaderMaterial;
+  private readonly contactMaterial: THREE.MeshBasicMaterial;
   private readonly beams: THREE.Mesh[] = [];
   private readonly wheels: { pivot: THREE.Group; spin: THREE.Group; front: boolean }[] = [];
   private readonly disposables: { dispose(): void }[] = [];
@@ -271,29 +278,68 @@ export class CarModel {
     for (const sx of [-1, 1]) {
       // Headlights wrap round the nose; tail lamps sit on the rear corners.
       addBox(0.36, 0.085, 0.14, sx * 0.53, 0.705, 2.2, this.headlightLens, sx * 0.42, -0.1);
-      addBox(0.4, 0.09, 0.1, sx * 0.52, 0.835, -2.185, this.tailLens, -sx * 0.3, 0.08);
-      addBox(0.1, 0.04, 0.06, sx * 0.22, 0.83, -2.215, this.reverseLens);
+      addBox(0.44, 0.11, 0.1, sx * 0.54, 0.83, -2.2, this.tailLens, -sx * 0.16, 0.06);
+      addBox(0.1, 0.04, 0.06, sx * 0.2, 0.75, -2.245, this.reverseLens);
       // Mirrors.
-      const stalk = addBox(0.12, 0.03, 0.05, sx * 0.93, 1.0, 0.8, trim);
+      const stalk = addBox(0.08, 0.025, 0.05, sx * 0.9, 1.0, 0.8, trim);
       stalk.castShadow = false;
-      const mirror = addBox(0.16, 0.11, 0.07, sx * 1.01, 1.03, 0.79, this.paint, sx * 0.25);
+      const mirror = addBox(0.11, 0.08, 0.06, sx * 0.965, 1.02, 0.79, this.paint, sx * 0.2);
       mirror.castShadow = true;
       // Door handles.
       addBox(0.02, 0.025, 0.14, sx * 0.915, 0.9, -0.12, chrome);
     }
     // Light bar joining the tail lamps, grille, splitter, diffuser, plates, exhaust.
-    addBox(0.62, 0.028, 0.05, 0, 0.84, -2.225, this.tailLens);
-    addBox(0.86, 0.14, 0.06, 0, 0.52, 2.265, trim);
-    addBox(1.5, 0.05, 0.3, 0, 0.3, 2.14, trim);
+    addBox(0.66, 0.03, 0.05, 0, 0.835, -2.235, this.tailLens);
+    addBox(1.36, 0.03, 0.16, 0, 1.03, -2.1, this.paint);
+    addBox(0.8, 0.1, 0.05, 0, 0.58, 2.262, trim);
+    addBox(1.36, 0.045, 0.16, 0, 0.345, 2.17, trim);
     addBox(1.44, 0.14, 0.2, 0, 0.36, -2.14, trim);
     const plate = this.track(new THREE.MeshStandardMaterial({ color: '#e8e2d0', roughness: 0.6 }));
-    addBox(0.46, 0.11, 0.02, 0, 0.6, -2.235, plate);
-    addBox(0.4, 0.1, 0.02, 0, 0.42, 2.3, plate);
+    addBox(0.46, 0.11, 0.02, 0, 0.6, -2.255, plate);
+    addBox(0.38, 0.09, 0.02, 0, 0.45, 2.285, plate);
     for (const sx of [-1, 1]) {
       const tip = new THREE.Mesh(this.track(new THREE.CylinderGeometry(0.035, 0.04, 0.14, 10).rotateX(Math.PI / 2)), chrome);
       tip.position.set(sx * 0.48, 0.33, -2.2);
       this.exterior.add(tip);
     }
+
+    // --- Contact shadow ---------------------------------------------------
+    // A soft dark patch under the car. It grounds the car when real shadows
+    // are off (Low preset, overcast, night) and adds depth when they are on.
+    const n = 48;
+    const data = new Uint8Array(n * n * 4);
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const dx = Math.abs((x + 0.5) / n - 0.5) * 2;
+        const dy = Math.abs((y + 0.5) / n - 0.5) * 2;
+        // Rounded-rectangle falloff.
+        const d = Math.pow(Math.pow(dx, 3.5) + Math.pow(dy, 3.5), 1 / 3.5);
+        const a = Math.max(0, 1 - d);
+        const i = (y * n + x) * 4;
+        data[i] = data[i + 1] = data[i + 2] = 0;
+        data[i + 3] = Math.round(Math.min(1, a * 2.4) ** 1.5 * 255);
+      }
+    }
+    const shadowTex = this.track(new THREE.DataTexture(data, n, n, THREE.RGBAFormat));
+    shadowTex.magFilter = THREE.LinearFilter;
+    shadowTex.minFilter = THREE.LinearFilter;
+    shadowTex.needsUpdate = true;
+    this.contactMaterial = this.track(
+      new THREE.MeshBasicMaterial({
+        map: shadowTex,
+        color: '#000000',
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -6,
+        polygonOffsetUnits: -6,
+      }),
+    );
+    const contact = new THREE.Mesh(this.track(new THREE.PlaneGeometry(2.7, 5.5).rotateX(-Math.PI / 2)), this.contactMaterial);
+    contact.position.y = 0.045;
+    contact.renderOrder = 1;
+    this.root.add(contact);
 
     // --- Wheels -----------------------------------------------------------
     const tireProfile = [
@@ -351,10 +397,10 @@ export class CarModel {
     );
     // A cone from the lamp (narrow end, uv.y = 0) widening forward along +Z.
     const beamGeo = this.track(
-      new THREE.CylinderGeometry(2.6, 0.12, 22, 20, 1, true).translate(0, 11, 0).rotateX(Math.PI / 2),
+      new THREE.CylinderGeometry(3.4, 0.12, 30, 20, 1, true).translate(0, 15, 0).rotateX(Math.PI / 2),
     );
     for (const sx of [-1, 1]) {
-      const light = new THREE.SpotLight('#fff1d8', 0, 150, 0.42, 0.55, 1.25);
+      const light = new THREE.SpotLight('#fff1d8', 0, 190, 0.5, 0.6, 1.2);
       light.position.set(sx * 0.55, 0.72, 2.15);
       light.target.position.set(sx * 0.9, 0, 26);
       this.root.add(light, light.target);
@@ -372,7 +418,9 @@ export class CarModel {
     this.root.add(this.fill);
 
     // --- Cockpit (first-person) ------------------------------------------
-    const dashMat = this.track(new THREE.MeshStandardMaterial({ color: '#17191c', roughness: 0.85 }));
+    const dashMat = this.track(
+      new THREE.MeshStandardMaterial({ color: '#2b2e33', roughness: 0.9, emissive: '#14161a', emissiveIntensity: 1 }),
+    );
     const cockpitBox = (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material = dashMat) => {
       const m = new THREE.Mesh(this.track(new THREE.BoxGeometry(w, h, d)), mat);
       m.position.set(x, y, z);
@@ -384,7 +432,7 @@ export class CarModel {
     cowl.rotation.x = -0.2;
     cockpitBox(0.05, 0.42, 2.0, 0.86, 0.78, -0.2);
     cockpitBox(0.05, 0.42, 2.0, -0.86, 0.78, -0.2);
-    cockpitBox(1.3, 0.03, 1.5, 0, 1.4, -0.4, this.track(new THREE.MeshStandardMaterial({ color: '#26272a', roughness: 1 })));
+    cockpitBox(1.3, 0.03, 1.5, 0, 1.4, -0.4, this.track(new THREE.MeshStandardMaterial({ color: '#33353a', roughness: 1, emissive: '#121316', emissiveIntensity: 1 })));
     cockpitBox(0.2, 0.055, 0.02, 0, 1.31, 0.26, trim);
     for (const sx of [-1, 1]) {
       const a = new THREE.Vector3(sx * 0.82, 0.97, 0.96);
@@ -395,12 +443,14 @@ export class CarModel {
       pillar.lookAt(b);
       this.cockpit.add(pillar);
     }
-    const wheelMat = this.track(new THREE.MeshStandardMaterial({ color: '#111214', roughness: 0.7 }));
-    this.steeringWheel = new THREE.Mesh(this.track(new THREE.TorusGeometry(0.155, 0.02, 8, 28)), wheelMat);
-    this.steeringWheel.position.set(DRIVER_SEAT.x, 0.93, 0.34);
+    const wheelMat = this.track(
+      new THREE.MeshStandardMaterial({ color: '#1d1f23', roughness: 0.7, emissive: '#0c0d10', emissiveIntensity: 1 }),
+    );
+    this.steeringWheel = new THREE.Mesh(this.track(new THREE.TorusGeometry(0.14, 0.018, 8, 28)), wheelMat);
+    this.steeringWheel.position.set(DRIVER_SEAT.x, 0.88, 0.36);
     this.steeringWheel.rotation.x = -0.35;
     this.cockpit.add(this.steeringWheel);
-    this.steeringWheel.add(new THREE.Mesh(this.track(new THREE.BoxGeometry(0.3, 0.028, 0.02)), wheelMat));
+    this.steeringWheel.add(new THREE.Mesh(this.track(new THREE.BoxGeometry(0.27, 0.026, 0.02)), wheelMat));
 
     // Instrument panel rendered from a small canvas (skipped without a DOM).
     if (typeof document !== 'undefined') {
@@ -410,11 +460,13 @@ export class CarModel {
       this.dashTexture = this.track(new THREE.CanvasTexture(this.dashCanvas));
       this.dashTexture.colorSpace = THREE.SRGBColorSpace;
       const panel = new THREE.Mesh(
-        this.track(new THREE.PlaneGeometry(0.3, 0.15)),
+        this.track(new THREE.PlaneGeometry(0.26, 0.13)),
         this.track(new THREE.MeshBasicMaterial({ map: this.dashTexture, toneMapped: false })),
       );
-      panel.position.set(DRIVER_SEAT.x, 1.02, 0.52);
-      panel.rotation.set(0.35, Math.PI, 0);
+      panel.position.set(DRIVER_SEAT.x, 1.065, 0.5);
+      panel.rotation.set(0.2, Math.PI, 0);
+      // A small binnacle behind the gauges.
+      cockpitBox(0.34, 0.17, 0.12, DRIVER_SEAT.x, 1.06, 0.57);
       this.cockpit.add(panel);
     } else {
       this.dashCanvas = null;
@@ -437,8 +489,8 @@ export class CarModel {
   }
 
   update(dt: number, s: CarVisualState): void {
-    this.body.rotation.set(s.pitch, 0, s.roll);
-    this.body.position.y = s.bounce;
+    this.body.rotation.set(Number.isFinite(s.pitch) ? s.pitch : 0, 0, Number.isFinite(s.roll) ? s.roll : 0);
+    this.body.position.y = Number.isFinite(s.bounce) ? s.bounce : 0;
     for (const w of this.wheels) {
       w.spin.rotation.x = s.wheelSpin;
       if (w.front) w.pivot.rotation.y = s.steerAngle;
@@ -448,9 +500,10 @@ export class CarModel {
     this.tailLens.emissiveIntensity = s.braking ? 7 : s.lightsOn ? 2.4 : 0.2;
     this.reverseLens.emissiveIntensity = s.reversing ? 3 : 0;
     this.fill.intensity = Math.max(0, s.darkness - 0.25) * 9;
+    this.contactMaterial.opacity = s.contactShadow;
     for (const l of this.headlights) l.intensity = s.headlights;
     const beam = s.lightsOn ? s.beams : 0;
-    this.beamMaterial.uniforms.uOpacity.value = beam * 0.5;
+    this.beamMaterial.uniforms.uOpacity.value = beam * 0.42;
     for (const b of this.beams) b.visible = beam > 0.01;
 
     if (this.cockpit.visible && this.dashCanvas && this.dashTexture) {

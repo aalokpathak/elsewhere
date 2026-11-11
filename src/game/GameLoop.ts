@@ -27,6 +27,7 @@ export class GameLoop {
 
   private tick = (now: number): void => {
     this.rafId = requestAnimationFrame(this.tick);
+    // rAF timestamps can be earlier than performance.now() at start: never negative.
     const dt = Math.min(0.1, Math.max(0, (now - this.last) / 1000));
     this.last = now;
     this.elapsed += dt;

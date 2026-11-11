@@ -14,7 +14,7 @@ uniform float uScale;
 void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   float age = aState.x;
-  gl_PointSize = aState.y * (0.45 + age * 1.6) * uScale / max(0.5, -mv.z);
+  gl_PointSize = min(aState.y * (0.5 + age * 1.9) * uScale / max(0.5, -mv.z), 220.0);
   vAlpha = aState.z * (1.0 - age) * (1.0 - age) * smoothstep(0.0, 0.08, age);
   vColor = aColor;
   gl_Position = projectionMatrix * mv;
@@ -28,7 +28,7 @@ void main() {
   vec2 c = gl_PointCoord - 0.5;
   float d = length(c) * 2.0;
   if (d > 1.0) discard;
-  float a = (1.0 - d * d) * vAlpha;
+  float a = (1.0 - d) * (1.0 - d) * vAlpha * 1.6;
   gl_FragColor = vec4(vColor, a);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>

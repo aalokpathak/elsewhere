@@ -36,6 +36,8 @@ uniform float uOpacity;
 varying float vAlpha;
 void main() {
   gl_FragColor = vec4(uColor, vAlpha * uOpacity);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }
 `;
 
@@ -70,6 +72,8 @@ void main() {
   float d = length(c);
   if (d > 0.5) discard;
   gl_FragColor = vec4(uColor, (1.0 - d * 2.0) * vAlpha * uOpacity);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }
 `;
 
@@ -150,7 +154,7 @@ export class Precipitation {
     this.snow.visible = snow > 0.01;
     this.rain.geometry.setDrawRange(0, Math.floor(this.max * Math.min(1, rain)) * 2);
     this.snow.geometry.setDrawRange(0, Math.floor(this.max * Math.min(1, snow)));
-    (this.rainMat.uniforms.uColor.value as THREE.Color).setRGB(0.55, 0.6, 0.65).multiplyScalar(0.4 + light * 0.8);
+    (this.rainMat.uniforms.uColor.value as THREE.Color).setRGB(0.32, 0.36, 0.4).multiplyScalar(0.4 + light * 0.8);
     (this.snowMat.uniforms.uColor.value as THREE.Color).setRGB(0.95, 0.96, 0.98).multiplyScalar(0.35 + light * 0.75);
   }
 

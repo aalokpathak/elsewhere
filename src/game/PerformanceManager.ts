@@ -32,7 +32,7 @@ export class PerformanceManager {
     if (!this.adaptive || this.cooldown > 0 || this.history.length < 10) return false;
     const recent = this.history.slice(-10);
     const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
-    if (avg < 42 && this.dynamicScale > this.minScale) {
+    if (avg < 47 && this.dynamicScale > this.minScale) {
       this.dynamicScale = Math.max(this.minScale, this.dynamicScale - 0.1);
       this.cooldown = 6;
       return true;

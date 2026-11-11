@@ -121,6 +121,8 @@ export class VehicleController {
   update(dt: number, input: VehicleInput, ground: GroundProbe): void {
     const s = this.state;
     const p = this.params;
+    // A zero-length step would divide by zero below (NaN pose → invisible car).
+    if (!(dt > 1e-5)) return;
     dt = Math.min(dt, 0.05);
 
     // --- Steering: eased input, speed-limited angle -------------------------

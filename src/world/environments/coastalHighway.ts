@@ -36,7 +36,8 @@ export const coastalHighway: EnvironmentPreset = {
     { kind: 'conifer', density: 1.4, minRoadDistance: 10, scale: [0.7, 1.15], clusterFrequency: 1 / 200, clusterThreshold: 0.35, maxSlope: 0.5, minHeight: 6, tints: ['#ffffff', '#dfe5d4'] },
     { kind: 'shrub', density: 14, minRoadDistance: 5.5, scale: [0.5, 1.2], clusterFrequency: 1 / 70, clusterThreshold: 0, maxSlope: 0.9, minHeight: 2, tints: ['#ffffff', '#e8e2c0', '#d8e0c4'] },
     { kind: 'rock', density: 5, minRoadDistance: 6, scale: [0.6, 2.2], clusterFrequency: 1 / 100, clusterThreshold: 0.2, maxSlope: 3, tints: ['#ffffff', '#ece4d6'] },
-    { kind: 'grass', density: 700, minRoadDistance: 5.6, scale: [0.6, 1.2], clusterFrequency: 1 / 30, clusterThreshold: -0.2, maxSlope: 0.8, minHeight: 2, tints: ['#f2ecc8'], nearOnly: true },
+    { kind: 'grass', density: 1200, minRoadDistance: 5.6, scale: [0.6, 1.2], clusterFrequency: 1 / 30, clusterThreshold: -0.2, maxSlope: 0.8, minHeight: 2, tints: ['#f2ecc8'], nearOnly: true },
+    { kind: 'flower', density: 180, minRoadDistance: 5.8, maxRoadDistance: 60, scale: [0.8, 1.4], clusterFrequency: 1 / 24, clusterThreshold: 0.3, maxSlope: 0.7, minHeight: 3, tints: ['#ffffff', '#f4d868', '#f0b8c8'], nearOnly: true },
   ],
   roadside: [
     { kind: 'delineator', spacing: 50, offset: 0.9, side: 'left', fill: 0.9 },

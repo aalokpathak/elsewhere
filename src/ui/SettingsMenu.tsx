@@ -125,6 +125,9 @@ export function SettingsMenu({ settings, onChange, onClose }: Props) {
             <Row label="Render resolution" hint="Lower is faster on high-DPI screens">
               <Slider label="Render resolution" value={settings.graphics.resolutionScale} min={0.5} max={1.5} step={0.05} format={pct} onChange={(v) => set('graphics', { resolutionScale: v })} />
             </Row>
+            <Row label="Bloom & film effects" hint="Glowing lights, soft grain. Not available on Low.">
+              <Toggle label="Bloom and film effects" checked={settings.graphics.postFx} onChange={(v) => set('graphics', { postFx: v })} />
+            </Row>
             <Row label="Adaptive resolution" hint="Gently lowers resolution after sustained slowdowns">
               <Toggle label="Adaptive resolution" checked={settings.graphics.adaptiveResolution} onChange={(v) => set('graphics', { adaptiveResolution: v })} />
             </Row>
