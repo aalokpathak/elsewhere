@@ -75,9 +75,10 @@ export class AudioManager {
   private volumes: AudioVolumes = { master: 0.8, vehicle: 0.6, ambience: 0.7, music: 0.35, horror: 0.6 };
   private layers = new Map<AmbienceLayer, Layer>();
   private config: AudioConfig | null = null;
-  private engine: { osc: OscillatorNode[]; filter: BiquadFilterNode; gain: GainNode } | null = null;
-  private tire: { filter: BiquadFilterNode; gain: GainNode; gravel: BiquadFilterNode; gravelGain: GainNode } | null = null;
-  private windRush: { filter: BiquadFilterNode; gain: GainNode } | null = null;
+  /** Soft electric-motor hum: two sines whose pitch rises gently with speed. */
+  private motor: { low: OscillatorNode; high: OscillatorNode; highGain: GainNode; filter: BiquadFilterNode; gain: GainNode } | null = null;
+  /** A quiet, rounded rush of air and road that grows with speed (same on every surface). */
+  private air: { filter: BiquadFilterNode; gain: GainNode } | null = null;
   private rain: { gain: GainNode } | null = null;
   private musicTimer = 0;
   private musicMood: MusicMood = 'calm';
@@ -165,62 +166,40 @@ export class AudioManager {
 
   private buildVehicle(): void {
     const ctx = this.ctx!;
+    // The car is electric: no engine, gears or exhaust. A soft, pure hum that
+    // rises a little in pitch with speed is the only mechanical sound.
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 400;
-    filter.Q.value = 0.9;
-    const shaper = ctx.createWaveShaper();
-    const curve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) {
-      const x = (i / 255) * 2 - 1;
-      curve[i] = Math.tanh(x * 1.8);
-    }
-    shaper.curve = curve;
+    filter.frequency.value = 700;
+    filter.Q.value = 0.3;
     const gain = ctx.createGain();
     gain.gain.value = 0;
-    const osc: OscillatorNode[] = [];
-    const mix = [0.5, 0.35, 0.12];
-    const types: OscillatorType[] = ['sawtooth', 'sawtooth', 'square'];
-    for (let i = 0; i < 3; i++) {
-      const o = ctx.createOscillator();
-      o.type = types[i];
-      o.frequency.value = 30;
-      const g = ctx.createGain();
-      g.gain.value = mix[i];
-      o.connect(g).connect(filter);
-      o.start();
-      osc.push(o);
-    }
-    filter.connect(shaper).connect(gain).connect(this.buses.vehicle);
-    this.engine = { osc, filter, gain };
+    const low = ctx.createOscillator();
+    low.type = 'sine';
+    low.frequency.value = 90;
+    const high = ctx.createOscillator();
+    high.type = 'sine';
+    high.frequency.value = 180;
+    const highGain = ctx.createGain();
+    highGain.gain.value = 0.12;
+    low.connect(filter);
+    high.connect(highGain).connect(filter);
+    filter.connect(gain).connect(this.buses.vehicle);
+    low.start();
+    high.start();
+    this.motor = { low, high, highGain, filter, gain };
 
-    // Tyre / road roar.
-    const tireSrc = this.noiseSource();
-    const tf = ctx.createBiquadFilter();
-    tf.type = 'bandpass';
-    tf.frequency.value = 350;
-    tf.Q.value = 0.7;
-    const tg = ctx.createGain();
-    tg.gain.value = 0;
-    tireSrc.connect(tf).connect(tg).connect(this.buses.vehicle);
-    const gravelSrc = this.noiseSource();
-    const gf = ctx.createBiquadFilter();
-    gf.type = 'highpass';
-    gf.frequency.value = 1400;
-    const gg = ctx.createGain();
-    gg.gain.value = 0;
-    gravelSrc.connect(gf).connect(gg).connect(this.buses.vehicle);
-    this.tire = { filter: tf, gain: tg, gravel: gf, gravelGain: gg };
-
-    // Wind rush with speed.
-    const windSrc = this.noiseSource();
-    const wf = ctx.createBiquadFilter();
-    wf.type = 'lowpass';
-    wf.frequency.value = 400;
-    const wg = ctx.createGain();
-    wg.gain.value = 0;
-    windSrc.connect(wf).connect(wg).connect(this.buses.vehicle);
-    this.windRush = { filter: wf, gain: wg };
+    // Gentle air and road rush. Low-passed so it reads as a soft "shhh",
+    // never a hiss, and identical on asphalt, grass, sand or concrete.
+    const airSrc = this.noiseSource();
+    const af = ctx.createBiquadFilter();
+    af.type = 'lowpass';
+    af.frequency.value = 260;
+    af.Q.value = 0.2;
+    const ag = ctx.createGain();
+    ag.gain.value = 0;
+    airSrc.connect(af).connect(ag).connect(this.buses.vehicle);
+    this.air = { filter: af, gain: ag };
 
     // Rain on the roof and road.
     const rainSrc = this.noiseSource();
@@ -535,30 +514,22 @@ export class AudioManager {
 
   /** Called every frame while a world is running. */
   update(dt: number, f: AudioFrame): void {
-    if (!this.ctx || this.ctx.state !== 'running' || !this.engine || !this.tire || !this.windRush || !this.rain) return;
+    if (!this.ctx || this.ctx.state !== 'running' || !this.motor || !this.air || !this.rain) return;
     const t = this.ctx.currentTime;
     const kmh = Math.abs(f.speed) * 3.6;
-    // Simple gearbox for a believable engine note.
-    const gears = [0, 22, 42, 66, 92, 125, 400];
-    let gi = 0;
-    while (gi < gears.length - 2 && kmh > gears[gi + 1]) gi++;
-    const within = (kmh - gears[gi]) / (gears[gi + 1] - gears[gi]);
-    const rpm = 850 + Math.min(1, within) * 3600 * (gi === 0 ? 0.9 : 0.75) + (gi > 0 ? 900 : 0) + f.throttle * 350;
-    const fund = (rpm / 60) * 2;
-    this.engine.osc[0].frequency.setTargetAtTime(fund, t, 0.06);
-    this.engine.osc[1].frequency.setTargetAtTime(fund * 0.5 * 1.004, t, 0.06);
-    this.engine.osc[2].frequency.setTargetAtTime(fund * 2, t, 0.06);
-    this.engine.filter.frequency.setTargetAtTime(220 + f.throttle * 700 + rpm * 0.08, t, 0.1);
-    this.engine.gain.gain.setTargetAtTime(f.active ? 0.07 + f.throttle * 0.07 + Math.min(kmh / 140, 1) * 0.04 : 0, t, 0.15);
-
-    const sp = Math.min(1, kmh / 110);
-    const onRoad = f.surface === 'asphalt' || f.surface === 'floor';
-    this.tire.filter.frequency.setTargetAtTime(260 + kmh * 6, t, 0.2);
-    this.tire.gain.gain.setTargetAtTime(f.active ? Math.pow(sp, 1.4) * (onRoad ? 0.32 : 0.2) : 0, t, 0.2);
-    const gravel = f.active && !onRoad && f.surface !== 'water' ? Math.min(1, kmh / 40) * 0.18 : 0;
-    this.tire.gravelGain.gain.setTargetAtTime(gravel, t, 0.12);
-    this.windRush.filter.frequency.setTargetAtTime(250 + kmh * 9, t, 0.3);
-    this.windRush.gain.gain.setTargetAtTime(f.active ? Math.pow(sp, 2) * 0.22 : 0, t, 0.3);
+    const sp = Math.min(1, kmh / 120);
+    // Hum: barely there when cruising, a touch fuller while accelerating.
+    // Slow time constants keep every change smooth.
+    const pitch = 82 + Math.min(kmh, 160) * 1.15;
+    this.motor.low.frequency.setTargetAtTime(pitch, t, 0.35);
+    this.motor.high.frequency.setTargetAtTime(pitch * 2.002, t, 0.35);
+    this.motor.highGain.gain.setTargetAtTime(0.06 + f.throttle * 0.08, t, 0.4);
+    this.motor.filter.frequency.setTargetAtTime(420 + sp * 380, t, 0.5);
+    const moving = Math.min(1, kmh / 6);
+    const hum = f.active ? (0.018 + sp * 0.014 + f.throttle * 0.012) * moving : 0;
+    this.motor.gain.gain.setTargetAtTime(hum, t, 0.45);
+    this.air.filter.frequency.setTargetAtTime(220 + sp * 260, t, 0.6);
+    this.air.gain.gain.setTargetAtTime(f.active ? sp * sp * 0.075 : 0, t, 0.6);
     this.rain.gain.gain.setTargetAtTime(f.rain * 0.3, t, 1.5);
 
     // Environment wind follows the weather.
@@ -744,62 +715,50 @@ export class AudioManager {
     g.linearRampToValueAtTime(1, t + 8 + seconds);
   }
 
-  /** A friendly two-tone horn. */
+  /** A soft two-note horn. */
   playHorn(): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const ctx = this.ctx;
     const t = ctx.currentTime;
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 1800;
+    lp.frequency.value = 1400;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.16, t + 0.02);
-    g.gain.setValueAtTime(0.16, t + 0.32);
-    g.gain.linearRampToValueAtTime(0, t + 0.42);
+    g.gain.linearRampToValueAtTime(0.07, t + 0.03);
+    g.gain.setValueAtTime(0.07, t + 0.3);
+    g.gain.linearRampToValueAtTime(0, t + 0.5);
     lp.connect(g).connect(this.buses.vehicle);
     g.connect(this.reverbSend);
     for (const f of [392, 494]) {
       const o = ctx.createOscillator();
-      o.type = 'sawtooth';
+      o.type = 'triangle';
       o.frequency.value = f;
       o.connect(lp);
       o.start(t);
-      o.stop(t + 0.45);
+      o.stop(t + 0.55);
     }
   }
 
-  playOneShot(kind: 'splash' | 'scrape' | 'click' | 'thud'): void {
+  /**
+   * Only the soft water swash remains. Bumps, scrapes and surface changes are
+   * deliberately silent so the drive keeps one calm, continuous sound.
+   */
+  playOneShot(kind: 'splash'): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const ctx = this.ctx;
     const t = ctx.currentTime;
     const n = this.noiseSource();
     const f = ctx.createBiquadFilter();
     const g = ctx.createGain();
-    if (kind === 'splash') {
-      f.type = 'lowpass';
-      f.frequency.value = 1200;
-      g.gain.setValueAtTime(0.4, t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
-    } else if (kind === 'thud') {
-      f.type = 'lowpass';
-      f.frequency.value = 260;
-      g.gain.setValueAtTime(0.7, t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
-    } else if (kind === 'scrape') {
-      f.type = 'bandpass';
-      f.frequency.value = 1800;
-      f.Q.value = 3;
-      g.gain.setValueAtTime(0.18, t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-    } else {
-      f.type = 'highpass';
-      f.frequency.value = 3000;
-      g.gain.setValueAtTime(0.05, t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-    }
+    void kind;
+    f.type = 'lowpass';
+    f.frequency.value = 520;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.09, t + 0.25);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
     n.connect(f).connect(g).connect(this.buses.vehicle);
-    n.stop(t + 1.3);
+    n.stop(t + 1.7);
   }
 
   async suspend(): Promise<void> {

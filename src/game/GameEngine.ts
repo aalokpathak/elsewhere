@@ -90,7 +90,6 @@ export class GameEngine {
   private toastTimer = 0;
   private recoverTimer = -1;
   private waterTime = 0;
-  private scrapeCooldown = 0;
   private driftTimer = 0;
   private emitAcc = 0;
   private needsRender = true;
@@ -744,7 +743,7 @@ export class GameEngine {
     const st = this.vehicle.state;
     world.road.query(st.x, st.z, this.q);
     this.carS = this.q.s;
-    this.constrain(session, dt);
+    this.constrain(session);
     this.updateRecovery(session, dt, driving);
     this.syncCarModel(dt);
 
@@ -787,10 +786,9 @@ export class GameEngine {
   }
 
   /** Indoor walls and solid scenery (trees, houses, poles, rails, parked cars). */
-  private constrain(session: Session, dt: number): void {
+  private constrain(session: Session): void {
     const st = this.vehicle.state;
     const ind = session.env.indoor;
-    this.scrapeCooldown -= dt;
     if (ind) {
       const limit = ind.driveHalfWidth;
       if (Math.abs(this.q.lateral) > limit) {
@@ -803,10 +801,6 @@ export class GameEngine {
         st.heading -= rel * 0.35;
         st.speed *= 0.9;
         st.yawRate *= 0.5;
-        if (this.scrapeCooldown <= 0 && Math.abs(st.speed) > 2) {
-          this.audio.playOneShot('scrape');
-          this.scrapeCooldown = 0.4;
-        }
       }
     }
     if (this.recoverTimer >= 0) return;
@@ -829,13 +823,8 @@ export class GameEngine {
       const along = fx * r.nx + fz * r.nz;
       const into = along * st.speed;
       if (into < 0) {
-        const impact = -into;
         st.speed *= Math.max(0, 1 - Math.abs(along) * 0.9);
         st.cruise = null;
-        if (impact > 1.5 && this.scrapeCooldown <= 0) {
-          this.audio.playOneShot(impact > 6 ? 'thud' : 'scrape');
-          this.scrapeCooldown = 0.35;
-        }
       }
       st.yawRate *= 0.6;
     }

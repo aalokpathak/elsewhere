@@ -95,7 +95,7 @@ export function SettingsMenu({ settings, onChange, onClose }: Props) {
             {(
               [
                 ['master', 'Master volume'],
-                ['vehicle', 'Vehicle', 'Engine, tyres, wind rush'],
+                ['vehicle', 'Vehicle', 'Soft electric hum and air'],
                 ['ambience', 'Environment ambience'],
                 ['music', 'Music', 'Slow generative pads'],
                 ['horror', 'Liminal sounds', 'Distant, sourceless noises'],

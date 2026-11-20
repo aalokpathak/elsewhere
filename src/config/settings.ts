@@ -36,7 +36,7 @@ export const CAR_COLORS = [
 export function createDefaultSettings(): Settings {
   return {
     version: 1,
-    audio: { master: 0.8, vehicle: 0.55, ambience: 0.75, music: 0.35, horror: 0.6 },
+    audio: { master: 0.8, vehicle: 0.5, ambience: 0.75, music: 0.35, horror: 0.6 },
     graphics: { preset: suggestPreset(), resolutionScale: 1, adaptiveResolution: true, showPerformance: false, postFx: true },
     controls: { cameraSensitivity: 1, steeringSensitivity: 1, units: 'kmh', maxSpeedKmh: 130, fov: 62 },
     comfort: { reduceMotion: false, showHud: true, showDriveTime: true },

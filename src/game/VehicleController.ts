@@ -37,8 +37,8 @@ export const DEFAULT_VEHICLE: VehicleParams = {
   reverseAccel: 3,
   wheelbase: 2.64,
   track: 1.56,
-  maxSteer: 0.58,
-  grip: 8.5,
+  maxSteer: 0.62,
+  grip: 12,
   steerSensitivity: 1,
 };
 
@@ -128,7 +128,8 @@ export class VehicleController {
     // --- Steering: eased input, speed-limited angle -------------------------
     const target = clamp(input.steer, -1, 1);
     const returning = Math.abs(target) < Math.abs(s.steerInput) || Math.sign(target) !== Math.sign(s.steerInput);
-    const rate = (returning ? 4.2 : 2.2) * (0.75 + 0.25 * p.steerSensitivity);
+    // Quick to turn in, quick to straighten: full lock in about a fifth of a second.
+    const rate = (returning ? 7 : 4.8) * (0.7 + 0.3 * p.steerSensitivity);
     const delta = target - s.steerInput;
     s.steerInput += clamp(delta, -rate * dt, rate * dt);
     const v = s.speed;
@@ -191,7 +192,7 @@ export class VehicleController {
     let yawTarget = (s.speed / p.wheelbase) * Math.tan(s.steer);
     if (input.handbrake && vAbs > 4) yawTarget *= 1.3;
     if (s.surface === 'water') yawTarget *= 0.3;
-    s.yawRate = damp(s.yawRate, yawTarget, 9, dt);
+    s.yawRate = damp(s.yawRate, yawTarget, 13, dt);
     s.heading += s.yawRate * dt;
 
     // --- Position ------------------------------------------------------------
